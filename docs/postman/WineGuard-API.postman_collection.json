@@ -1,0 +1,316 @@
+{
+  "info": {
+    "name": "WineGuard API - Demonstração completa",
+    "description": "Fluxo demonstrativo de todos os 9 endpoints do backend. Execute na ordem com Runner: saúde, ambiente, dispositivo, limites e leituras. As criações usam dados fictícios e geram novos registros a cada execução. Leituras FIWARE dependem das VMs Orion/STH-Comet; 502 é tratado como dependência indisponível, não como sucesso de leitura.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "environmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dateFrom",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dateTo",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Saúde",
+      "item": [
+        {
+          "name": "Verificar API",
+          "request": {
+            "method": "GET",
+            "description": "Confirma se a API Spring Boot está respondendo.",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Status de saúde UP\", function () { pm.expect(pm.response.json().status).to.eql(\"UP\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 - Ambientes",
+      "item": [
+        {
+          "name": "Criar ambiente de demonstração",
+          "request": {
+            "method": "POST",
+            "description": "Cria um ambiente fictício com nome único. O ID retornado alimenta automaticamente o cadastro do sensor.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/environments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Adega Demo {{$guid}}\",\n  \"description\": \"Ambiente fictício criado pela coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "const created = pm.response.json();",
+                  "if (created.id) pm.collectionVariables.set(\"environmentId\", String(created.id));",
+                  "pm.test(\"Resposta contém ID do ambiente\", function () { pm.expect(created.id).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar ambientes",
+          "request": {
+            "method": "GET",
+            "description": "Lista ambientes persistidos no PostgreSQL.",
+            "header": [],
+            "url": "{{baseUrl}}/api/environments"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 - Dispositivos",
+      "item": [
+        {
+          "name": "Cadastrar sensor de demonstração",
+          "request": {
+            "method": "POST",
+            "description": "Registra um sensor fictício associado ao ambiente criado acima. Serviço/caminho FIWARE são valores de demonstração.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sensor Demo {{$guid}}\",\n  \"fiwareId\": \"wineguard-demo-{{$guid}}\",\n  \"fiwareType\": \"WineSensor002\",\n  \"fiwareService\": \"vinheria\",\n  \"fiwareServicePath\": \"/\",\n  \"environmentId\": {{environmentId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "const created = pm.response.json();",
+                  "if (created.id) pm.collectionVariables.set(\"deviceId\", String(created.id));",
+                  "pm.test(\"Resposta contém ID do dispositivo\", function () { pm.expect(created.id).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar dispositivos",
+          "request": {
+            "method": "GET",
+            "description": "Lista sensores cadastrados e os ambientes associados.",
+            "header": [],
+            "url": "{{baseUrl}}/api/devices"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 - Limites ambientais",
+      "item": [
+        {
+          "name": "Criar ou atualizar limite de temperatura",
+          "request": {
+            "method": "PUT",
+            "description": "Grava um limite ilustrativo no PostgreSQL. Ajuste os números à faixa definida pela equipe antes de qualquer uso operacional.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metric\": \"TEMPERATURE\",\n  \"minimumValue\": 10.0,\n  \"maximumValue\": 18.0,\n  \"unit\": \"°C\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Limite retornado pertence ao sensor da demonstração\", function () { pm.expect(String(pm.response.json().deviceId)).to.eql(pm.collectionVariables.get(\"deviceId\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar limites do sensor",
+          "request": {
+            "method": "GET",
+            "description": "Confere os limites associados ao sensor.",
+            "header": [],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 - Leituras FIWARE",
+      "item": [
+        {
+          "name": "Consultar leitura atual no Orion",
+          "request": {
+            "method": "GET",
+            "description": "Busca atributos atuais no Orion. Retorno 502 indica que o Orion configurado não está acessível nesta execução.",
+            "header": [],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/current"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Orion respondeu ou a indisponibilidade foi tratada\", function () { pm.expect([200, 502]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar histórico no STH-Comet",
+          "request": {
+            "method": "GET",
+            "description": "Busca histórico de temperatura no STH-Comet. Retorno 502 indica que o serviço não está acessível nesta execução.",
+            "header": [],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/history/TEMPERATURE?dateFrom={{dateFrom}}&dateTo={{dateTo}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Usa as últimas 24 horas para que a faixa de demonstração não envelheça.",
+                  "const end = new Date();",
+                  "const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);",
+                  "pm.collectionVariables.set(\"dateFrom\", start.toISOString());",
+                  "pm.collectionVariables.set(\"dateTo\", end.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"STH-Comet respondeu ou a indisponibilidade foi tratada\", function () { pm.expect([200, 502]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
