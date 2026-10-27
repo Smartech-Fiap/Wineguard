@@ -6,7 +6,7 @@ Este guia relaciona cada pedido de revisão aos arquivos do backend WineGuard. O
 
 | Pedido | Arquivo ou informação |
 |---|---|
-| Link do repositório ou SQL | Repositório privado: `https://github.com/joao-jps/wineguard-backend`. O schema está em `src/main/resources/db/migration/V1__create_application_schema.sql`; dados locais fictícios opcionais em `src/main/resources/db/seed/demo-data.sql`. |
+| Link do repositório ou SQL | Repositório público: `https://github.com/joao-jps/wineguard-backend`. O schema está em `src/main/resources/db/migration/V1__create_application_schema.sql`; dados locais fictícios opcionais em `src/main/resources/db/seed/demo-data.sql`. |
 | Modelo e relacionamentos | `docs/database.md` e a seção “Dados e relações” do `README.md`. |
 | Banco e versão | PostgreSQL 16 (`postgres:16-alpine` no Compose local). A versão pontual do servidor conectada deve ser conferida no ambiente de implantação. |
 | Instalar e executar | `docs/rodar-localmente.md` e o `README.md`. |
@@ -34,4 +34,4 @@ Solicite à equipe os endereços acessíveis do Orion e STH-Comet, autenticaçã
 
 ## Como enviar
 
-O código está organizado no repositório privado indicado acima. Compartilhe o acesso com colegas pelo GitHub somente depois de definir os usuários da equipe. Remova `.env` local se existir e não envie senhas por Git, e-mail aberto ou junto do SQL. O arquivo `.env.example` contém apenas valores fictícios locais.
+O código está organizado no repositório público indicado acima. Para conceder acesso de escrita, adicione os colegas como colaboradores do GitHub. Remova `.env` local se existir e não envie senhas por Git, e-mail aberto ou junto do SQL. O arquivo `.env.example` contém apenas valores fictícios locais.
