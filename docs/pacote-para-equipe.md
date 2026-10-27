@@ -6,13 +6,14 @@ Este guia relaciona cada pedido de revisão aos arquivos do backend WineGuard. O
 
 | Pedido | Arquivo ou informação |
 |---|---|
-| Link do repositório ou SQL | Ainda não há repositório GitHub. O schema está em `src/main/resources/db/migration/V1__create_application_schema.sql`; dados locais fictícios opcionais em `src/main/resources/db/seed/demo-data.sql`. |
+| Link do repositório ou SQL | Repositório privado: `https://github.com/joao-jps/wineguard-backend`. O schema está em `src/main/resources/db/migration/V1__create_application_schema.sql`; dados locais fictícios opcionais em `src/main/resources/db/seed/demo-data.sql`. |
 | Modelo e relacionamentos | `docs/database.md` e a seção “Dados e relações” do `README.md`. |
 | Banco e versão | PostgreSQL 16 (`postgres:16-alpine` no Compose local). A versão pontual do servidor conectada deve ser conferida no ambiente de implantação. |
 | Instalar e executar | `docs/rodar-localmente.md` e o `README.md`. |
 | Exemplo de variáveis | `.env.example`, com valores locais fictícios; copiar para `.env` e nunca preencher com segredos no arquivo compartilhado. |
 | Onde está executando | Desenvolvimento local: API pela classe principal no IntelliJ/porta `8080`; PostgreSQL em Docker Desktop/porta local `5432`. Não está implantado na AWS. |
 | API visual e testes | `docs/api-visual.md` e `docs/postman/WineGuard-API.postman_collection.json`. |
+| Guia visual editável | `docs/guia-da-equipe.docx`; pode ser aberto no Word/Pages ou importado no Google Docs. |
 | Arquitetura e execução | `docs/fluxo-e-execucao.svg` e `docs/rodar-localmente.md`. |
 
 ## Modelo atual
@@ -33,4 +34,4 @@ Solicite à equipe os endereços acessíveis do Orion e STH-Comet, autenticaçã
 
 ## Como enviar
 
-Até existir um repositório aprovado, compartilhe a pasta do projeto por um meio autorizado pela equipe ou envie o SQL, `README.md`, este guia, a documentação visual e a coleção Postman como arquivos. Remova `.env` local se existir. Não envie senha por Git, e-mail aberto ou junto do SQL. Nenhuma ação Git foi feita; criação/publicação de repositório, commits e convite de colaboradores aguardam aprovação explícita após apresentação do conteúdo planejado.
+O código está organizado no repositório privado indicado acima. Compartilhe o acesso com colegas pelo GitHub somente depois de definir os usuários da equipe. Remova `.env` local se existir e não envie senhas por Git, e-mail aberto ou junto do SQL. O arquivo `.env.example` contém apenas valores fictícios locais.
