@@ -4,6 +4,8 @@ import br.com.vinhariaagnello.wineguard.enums.Metric;
 import br.com.vinhariaagnello.wineguard.dto.DeviceDtos;
 import br.com.vinhariaagnello.wineguard.service.DeviceService;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareReadingsService;
+import br.com.vinhariaagnello.wineguard.dto.CommandDtos;
+import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareCommandService;
 
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class DeviceController {
     private final DeviceService service;
     private final FiwareReadingsService readings;
+    private final FiwareCommandService commands;
 
     /** Lista os dispositivos cadastrados com seus ambientes. */
     @GetMapping
@@ -64,5 +67,17 @@ public class DeviceController {
     public Map<String, Object> history(@PathVariable Long deviceId, @PathVariable Metric metric,
                             @RequestParam Instant dateFrom, @RequestParam Instant dateTo) {
         return readings.history(service.require(deviceId), metric, dateFrom, dateTo);
+    }
+    /** Solicita um alerta remoto pelo Orion, sem confirmar execução física. */
+    @PostMapping("/{deviceId}/commands/alert")
+    public ResponseEntity<CommandDtos.AlertResponse> sendAlert(
+            @PathVariable Long deviceId,
+            @Valid @RequestBody CommandDtos.AlertRequest request) {
+
+        commands.sendAlert(service.require(deviceId), request.command());
+
+        return ResponseEntity.accepted().body(
+                new CommandDtos.AlertResponse(
+                        deviceId, request.command(), "accepted"));
     }
 }

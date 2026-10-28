@@ -52,7 +52,8 @@ public class ApiExceptionHandler {
     /** Informa falha do serviço externo sem repassar detalhes de rede. */
     @ExceptionHandler(RestClientException.class)
     ProblemDetail handleUpstream(RestClientException exception) {
-        return problem(HttpStatus.BAD_GATEWAY, "Não foi possível consultar o serviço FIWARE configurado.");
+        return problem(HttpStatus.BAD_GATEWAY,
+        "Falha na comunicação com o FIWARE. O resultado da operação não foi confirmado.");
     }
 
     /** Evita devolver stack traces ou nomes de classes ao consumidor da API. */

@@ -1,24 +1,40 @@
 package br.com.vinhariaagnello.wineguard.config;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableConfigurationProperties(FiwareProperties.class)
-/** Cria clientes HTTP independentes para as bases Orion e STH-Comet. */
 public class FiwareClientConfiguration {
 
-    /** Configura o RestClient do Orion com sua URL externa. */
     @Bean
     RestClient orionRestClient(FiwareProperties properties) {
-        return RestClient.builder().baseUrl(properties.orion().baseUrl()).build();
+        return createClient(properties.orion().baseUrl());
     }
 
-    /** Configura o RestClient do STH-Comet com sua URL externa. */
     @Bean
     RestClient sthRestClient(FiwareProperties properties) {
-        return RestClient.builder().baseUrl(properties.sth().baseUrl()).build();
+        return createClient(properties.sth().baseUrl());
+    }
+
+    private RestClient createClient(String baseUrl) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+
+        JdkClientHttpRequestFactory factory =
+                new JdkClientHttpRequestFactory(httpClient);
+
+        factory.setReadTimeout(Duration.ofSeconds(10));
+
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(factory)
+                .build();
     }
 }
