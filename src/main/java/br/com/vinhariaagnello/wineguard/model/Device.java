@@ -38,6 +38,10 @@ public class Device {
     @Column(name = "fiware_id", nullable = false, length = 255)
     private String fiwareId;
 
+    @Size(max = 100)
+    @Column(name = "mqtt_device_id", length = 100)
+    private String mqttDeviceId;
+
     @NotBlank
     @Size(max = 100)
     @Column(name = "fiware_type", nullable = false, length = 100)
@@ -63,10 +67,18 @@ public class Device {
     private Environment environment;
 
     /** Construtor de cadastro usado pelo serviço após validar o ambiente. */
-    public Device(String name, String fiwareId, String fiwareType, String fiwareService,
-                  String fiwareServicePath, Environment environment) {
+     public Device(
+            String name,
+            String fiwareId,
+            String mqttDeviceId,
+            String fiwareType,
+            String fiwareService,
+            String fiwareServicePath,
+            Environment environment
+    ) {
         this.name = name;
         this.fiwareId = fiwareId;
+        this.mqttDeviceId = mqttDeviceId;
         this.fiwareType = fiwareType;
         this.fiwareService = fiwareService;
         this.fiwareServicePath = fiwareServicePath;

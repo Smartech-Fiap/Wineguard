@@ -8,4 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DeviceRepository extends JpaRepository<Device, Long> {
     /** Evita cadastrar duas vezes o mesmo ID FIWARE dentro do mesmo contexto. */
     boolean existsByFiwareServiceAndFiwareServicePathAndFiwareId(String service, String servicePath, String fiwareId);
+    /** Verifica duplicidade do ID MQTT dentro do contexto FIWARE. */
+    boolean existsByFiwareServiceAndFiwareServicePathAndMqttDeviceId(
+            String service,
+            String servicePath,
+            String mqttDeviceId
+    );
+
 }

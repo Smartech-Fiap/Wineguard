@@ -41,8 +41,24 @@ public class DeviceService {
                 request.fiwareService(), request.fiwareServicePath(), request.fiwareId())) {
             throw new ConflictException("O dispositivo FIWARE já está cadastrado.");
         }
-        Device device = new Device(request.name(), request.fiwareId(), request.fiwareType(),
-                request.fiwareService(), request.fiwareServicePath(), environments.require(request.environmentId()));
+
+	if (devices.existsByFiwareServiceAndFiwareServicePathAndMqttDeviceId(
+                request.fiwareService(),
+                request.fiwareServicePath(),
+                request.mqttDeviceId())) {
+            throw new ConflictException(
+                    "O identificador MQTT já está cadastrado nesse contexto FIWARE.");
+        }
+
+        Device device = new Device(
+                request.name(),
+                request.fiwareId(),
+                request.mqttDeviceId(),
+                request.fiwareType(),
+                request.fiwareService(),
+                request.fiwareServicePath(),
+                environments.require(request.environmentId())
+        );
         return DeviceDtos.Response.from(devices.save(device));
     }
 
