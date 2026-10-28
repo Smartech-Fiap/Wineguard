@@ -22,6 +22,11 @@ public class FiwareClientConfiguration {
         return createClient(properties.sth().baseUrl());
     }
 
+    @Bean
+    RestClient iotaRestClient(FiwareProperties properties) {
+        return createClient(properties.iota().baseUrl());
+    }
+
     private RestClient createClient(String baseUrl) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))

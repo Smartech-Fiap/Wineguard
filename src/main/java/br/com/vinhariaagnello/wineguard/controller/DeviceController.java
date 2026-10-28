@@ -6,6 +6,7 @@ import br.com.vinhariaagnello.wineguard.service.DeviceService;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareReadingsService;
 import br.com.vinhariaagnello.wineguard.dto.CommandDtos;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareCommandService;
+import br.com.vinhariaagnello.wineguard.integration.fiware.IotaProvisioningService;
 
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -31,6 +32,7 @@ public class DeviceController {
     private final DeviceService service;
     private final FiwareReadingsService readings;
     private final FiwareCommandService commands;
+    private final IotaProvisioningService provisioning;
 
     /** Lista os dispositivos cadastrados com seus ambientes. */
     @GetMapping
@@ -79,5 +81,18 @@ public class DeviceController {
         return ResponseEntity.accepted().body(
                 new CommandDtos.AlertResponse(
                         deviceId, request.command(), "accepted"));
+    }
+    /** Provisiona no IoT Agent um dispositivo já cadastrado no banco. */
+    @PostMapping("/{deviceId}/provision")
+    public ResponseEntity<Map<String, Object>> provision(
+            @PathVariable Long deviceId) {
+
+        provisioning.provision(service.require(deviceId));
+
+        return ResponseEntity.status(201).body(Map.of(
+                "deviceId", deviceId,
+                "status", "provisioned",
+                "mqttAccess", "not_configured_by_this_operation"
+        ));
     }
 }

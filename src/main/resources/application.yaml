@@ -41,3 +41,6 @@ fiware:
     service-path: ${FIWARE_SERVICE_PATH:/}
   sth:
     base-url: ${FIWARE_STH_BASE_URL:http://localhost:8666}
+  iota:
+    base-url: ${FIWARE_IOTA_BASE_URL:http://localhost:4041}
+    api-key: ${FIWARE_IOTA_API_KEY:}
