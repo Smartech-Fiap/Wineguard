@@ -33,13 +33,13 @@ Sem IntelliJ:
 
 No Windows, use `mvnw.cmd spring-boot:run`.
 
-## 3. Conferir API e conectar o Beekeeper Studio
+## 3. Conferir API e conectar o Banco De Dados
 
 - Saúde: `http://localhost:8080/actuator/health`
 - Base dos ambientes: `http://localhost:8080/api/environments`
 - Base dos dispositivos: `http://localhost:8080/api/devices`
 
-No Beekeeper Studio, escolha **New Connection → PostgreSQL** e informe:
+Na IDE De sua preferência, escolha **New Connection → PostgreSQL** e informe:
 
 | Campo | Valor local |
 |---|---|
