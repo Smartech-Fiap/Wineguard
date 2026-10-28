@@ -6,6 +6,7 @@ import br.com.vinhariaagnello.wineguard.service.DeviceService;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareReadingsService;
 import br.com.vinhariaagnello.wineguard.dto.CommandDtos;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareCommandService;
+import br.com.vinhariaagnello.wineguard.service.DeviceRemovalService;
 import br.com.vinhariaagnello.wineguard.integration.fiware.IotaProvisioningService;
 
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +35,7 @@ public class DeviceController {
     private final FiwareReadingsService readings;
     private final FiwareCommandService commands;
     private final IotaProvisioningService provisioning;
+    private final DeviceRemovalService removal;
 
     /** Lista os dispositivos cadastrados com seus ambientes. */
     @GetMapping
@@ -94,5 +97,11 @@ public class DeviceController {
                 "status", "provisioned",
                 "mqttAccess", "not_configured_by_this_operation"
         ));
+    }
+    /** Remove o provisionamento, a entidade e o cadastro local. */
+    @DeleteMapping("/{deviceId}")
+    public ResponseEntity<Void> remove(@PathVariable Long deviceId) {
+        removal.remove(deviceId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClientResponseException;
 
 @Service
@@ -25,6 +26,10 @@ public class IotaProvisioningService {
     }
 
     public void provision(Device device) {
+	if (!device.isActive()) {
+            throw new IllegalArgumentException("O dispositivo está desativado.");
+        }
+
         validate(device);
 
         if (exists(device)) {
@@ -58,6 +63,50 @@ public class IotaProvisioningService {
                 .toBodilessEntity();
     }
 
+    public void removeProvisioning(Device device) {
+        validate(device);
+
+        Map<String, Object> registered;
+
+        try {
+            registered = iota.get()
+                    .uri("/iot/devices/{id}", device.getMqttDeviceId())
+                    .header("fiware-service", device.getFiwareService())
+                    .header("fiware-servicepath", device.getFiwareServicePath())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 404) {
+                return;
+            }
+            throw exception;
+        }
+
+        if (registered == null) {
+            throw new IllegalStateException(
+                    "Resposta vazia ao verificar o dispositivo no IoT Agent.");
+        }
+
+        if (!device.getFiwareId().equals(registered.get("entity_name")) ||
+                !device.getFiwareType().equals(registered.get("entity_type"))) {
+            throw new ConflictException(
+                    "O registro no IoT Agent aponta para outra entidade.");
+        }
+
+        try {
+            iota.delete()
+                    .uri("/iot/devices/{id}", device.getMqttDeviceId())
+                    .header("fiware-service", device.getFiwareService())
+                    .header("fiware-servicepath", device.getFiwareServicePath())
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() != 404) {
+                throw exception;
+            }
+        }
+    }
+
     private boolean exists(Device device) {
         try {
             iota.get()
@@ -76,9 +125,6 @@ public class IotaProvisioningService {
     }
 
     private void validate(Device device) {
-        if (!device.isActive()) {
-            throw new IllegalArgumentException("O dispositivo está desativado.");
-        }
 
         if (device.getMqttDeviceId() == null ||
                 !device.getMqttDeviceId().matches("[A-Za-z0-9_-]{1,100}")) {

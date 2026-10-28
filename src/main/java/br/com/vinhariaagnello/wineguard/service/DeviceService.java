@@ -87,4 +87,11 @@ public class DeviceService {
         limit.setUnit(request.unit());
         return DeviceDtos.LimitResponse.from(limits.save(limit));
     }
+
+    /** Remove o cadastro local após a remoção no FIWARE. */
+    public void deleteLocalAfterFiwareRemoval(Long deviceId) {
+        Device device = require(deviceId);
+        devices.delete(device);
+        devices.flush();
+    }
 }
