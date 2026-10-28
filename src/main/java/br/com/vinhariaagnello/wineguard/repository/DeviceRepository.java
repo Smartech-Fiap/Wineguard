@@ -1,18 +1,29 @@
 package br.com.vinhariaagnello.wineguard.repository;
 
 import br.com.vinhariaagnello.wineguard.model.Device;
-
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-/** Consultas de persistência para dispositivos registrados na aplicação. */
+/** Consultas de persistência dos dispositivos. */
 public interface DeviceRepository extends JpaRepository<Device, Long> {
-    /** Evita cadastrar duas vezes o mesmo ID FIWARE dentro do mesmo contexto. */
-    boolean existsByFiwareServiceAndFiwareServicePathAndFiwareId(String service, String servicePath, String fiwareId);
-    /** Verifica duplicidade do ID MQTT dentro do contexto FIWARE. */
+
+    boolean existsByFiwareServiceAndFiwareServicePathAndFiwareId(
+            String service,
+            String servicePath,
+            String fiwareId);
+
     boolean existsByFiwareServiceAndFiwareServicePathAndMqttDeviceId(
             String service,
             String servicePath,
-            String mqttDeviceId
-    );
+            String mqttDeviceId);
 
+    /** Serializa a criação de configurações para o mesmo dispositivo. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Device d where d.id = :deviceId")
+    Optional<Device> findForConfiguration(
+            @Param("deviceId") Long deviceId);
 }

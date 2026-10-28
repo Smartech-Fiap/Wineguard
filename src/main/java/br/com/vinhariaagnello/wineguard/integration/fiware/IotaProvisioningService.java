@@ -46,10 +46,15 @@ public class IotaProvisioningService {
                 "attributes", List.of(
                         attribute("t", "temperature"),
                         attribute("h", "humidity"),
-                        attribute("l", "luminosity")
+                        attribute("l", "luminosity"),
+                        Map.of(
+                                "object_id", "cfg",
+                                "name", "configuration",
+                                "type", "Text")
                 ),
                 "commands", List.of(
-                        Map.of("name", "alert", "type", "command")
+                        Map.of("name", "alert", "type", "command"),
+                        Map.of("name", "configure", "type", "command")
                 )
         );
 
