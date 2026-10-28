@@ -42,6 +42,8 @@ public class FiwareReadingsService {
         return sth.get()
                 .uri(uriBuilder -> uriBuilder.path("/STH/v1/contextEntities/type/{type}/id/{id}/attributes/{attribute}")
                         .queryParam("dateFrom", dateFrom).queryParam("dateTo", dateTo)
+			.queryParam("hLimit", 20)
+			.queryParam("hOffset", 0)
                         .build(device.getFiwareType(), device.getFiwareId(), attributeName(metric)))
                 .header("Fiware-Service", device.getFiwareService())
                 .header("Fiware-ServicePath", device.getFiwareServicePath())
