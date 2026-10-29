@@ -2,11 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   ApiError,
+  createAppUser,
   createDevice,
   createDeviceConfiguration,
   createEnvironment,
   deleteDevice,
   getCsrfToken,
+  getAppUsers,
+  getWineries,
+  validateWineryLocation,
   getCurrentReadings,
   getDeviceConfiguration,
   getDeviceLimits,
@@ -27,12 +31,14 @@ import {
   watchDeviceConfiguration,
 } from './api.js'
 
+const locationFixture = { wineryName: 'Vinícola de teste', city: 'São Paulo', region: 'São Paulo', country: 'Brasil', latitude: -23.550520, longitude: -46.633308 }
+
 const currentFixture = {
   id: 'WineSensor002',
   temperature: 0,
   humidity: null,
   luminosity: 0,
-  measuredAt: '2026-10-13T19:31:56.582Z',
+  TimeInstant: '2026-10-13T19:31:56.582Z',
 }
 
 function respond(data) {
@@ -54,7 +60,7 @@ async function withFetch(implementation, callback) {
 
 test('accepts finite readings, null values, and zero without coercion', async () => {
   await withFetch(respond(currentFixture), async () => {
-    const readings = await getCurrentReadings()
+    const readings = await getCurrentReadings(1)
     assert.equal(readings.temperature, 0)
     assert.equal(readings.humidity, null)
     assert.equal(readings.luminosity, 0)
@@ -62,47 +68,54 @@ test('accepts finite readings, null values, and zero without coercion', async ()
 })
 
 test('rejects invalid current reading values and dates', async (context) => {
-  for (const [field, value] of [['temperature', 'incorreto'], ['humidity', 'NaN'], ['luminosity', 'Infinity'], ['measuredAt', 'data-invalida']]) {
+  for (const [field, value] of [['temperature', 'incorreto'], ['humidity', 'NaN'], ['luminosity', 'Infinity'], ['TimeInstant', 'data-invalida']]) {
     await context.test(`${field}=${String(value)}`, async () => {
       await withFetch(respond({ ...currentFixture, [field]: value }), async () => {
-        await assert.rejects(getCurrentReadings(), /valores ou data inválidos/)
+        await assert.rejects(getCurrentReadings(1), /valores ou data inválidos/)
       })
     })
   }
 })
 
-test('accepts empty history and preserves zero-valued points', async () => {
-  await withFetch(respond({
-    id: 'WineSensor002',
-    attribute: 'temperature',
-    count: 2,
-    points: [
-      { value: 0, receivedAt: '2026-10-13T19:13:49.374Z' },
-      { value: 25.5, receivedAt: '2026-10-13T19:31:56.582Z' },
-    ],
-  }), async () => {
-    const points = await getSensorHistory('temperature')
+function historyFixture(attribute, points) {
+  return { contextResponses: [{
+    contextElement: { id: 'WineSensor002', attributes: [{ name: attribute, values: points }] },
+    statusCode: { code: '200' },
+  }] }
+}
+
+test('uses protected Java routes and maps raw Orion and STH responses', async () => {
+  await withFetch(async (url, options) => {
+    assert.equal(options.credentials, 'same-origin')
+    assert.equal(url, '/api/devices/7/readings/current')
+    return respond(currentFixture)()
+  }, async () => assert.equal((await getCurrentReadings(7)).measuredAt, currentFixture.TimeInstant))
+  await withFetch(async (url) => {
+    const parsed = new URL(url, 'https://example.test')
+    assert.equal(parsed.pathname, '/api/devices/7/readings/history/TEMPERATURE')
+    assert.equal(Date.parse(parsed.searchParams.get('dateTo')) - Date.parse(parsed.searchParams.get('dateFrom')), 86400000)
+    return respond(historyFixture('temperature', [
+      { attrValue: 25.5, recvTime: '2026-10-13T19:31:56.582Z' },
+      { attrValue: 0, recvTime: '2026-10-13T19:13:49.374Z' },
+    ]))()
+  }, async () => {
+    const points = await getSensorHistory(7, 'temperature')
     assert.equal(points.length, 2)
     assert.equal(points[0].value, 0)
     assert.ok(Number.isFinite(points[0].timestamp))
   })
-
-  await withFetch(respond({ id: 'WineSensor002', attribute: 'humidity', count: 0, points: [] }), async () => {
-    assert.deepEqual(await getSensorHistory('humidity'), [])
+  await withFetch(respond(historyFixture('humidity', [])), async () => {
+    assert.deepEqual(await getSensorHistory(1, 'humidity'), [])
   })
 })
 
-test('rejects invalid history points and query arguments', async () => {
-  await withFetch(respond({
-    id: 'WineSensor002',
-    attribute: 'temperature',
-    count: 1,
-    points: [{ value: 'incorreto', receivedAt: '2026-10-13T19:13:49.374Z' }],
-  }), async () => {
-    await assert.rejects(getSensorHistory('temperature'), /pontos inválidos/)
+test('rejects invalid history points and query arguments without legacy fallback', async () => {
+  await withFetch(respond(historyFixture('temperature', [{ attrValue: 'incorreto', recvTime: '2026-10-13T19:13:49.374Z' }])), async () => {
+    await assert.rejects(getSensorHistory(1, 'temperature'), /pontos inválidos/)
   })
-  await assert.rejects(getSensorHistory('smoke'), /Atributo histórico inválido/)
-  await assert.rejects(getSensorHistory('temperature', 101), /inteiro entre 1 e 100/)
+  await assert.rejects(getSensorHistory(1, 'smoke'), /Atributo histórico inválido/)
+  await assert.rejects(getSensorHistory(0, 'temperature'), /inteiro positivo/)
+  await assert.rejects(getCurrentReadings(null), /inteiro positivo/)
 })
 
 test('ends a pending request with a retryable timeout error', async () => {
@@ -110,9 +123,43 @@ test('ends a pending request with a retryable timeout error', async () => {
     signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
   }), async () => {
     await assert.rejects(
-      getCurrentReadings({ timeoutMs: 15 }),
+      getCurrentReadings(1, { timeoutMs: 15 }),
       (error) => error.name === 'TimeoutError' && /Tente novamente/.test(error.message),
     )
+  })
+})
+
+test('does not fall back to public telemetry when Java denies device access', async () => {
+  for (const status of [403, 404]) {
+    const calls = []
+    await withFetch(async (url) => {
+      calls.push(url)
+      return new Response(JSON.stringify({ detail: 'Dispositivo não encontrado.' }), {
+        status, headers: { 'content-type': 'application/problem+json' },
+      })
+    }, async () => {
+      await assert.rejects(getCurrentReadings(8), (error) => error.status === status)
+      await assert.rejects(getSensorHistory(8, 'humidity'), (error) => error.status === status)
+      assert.equal(calls.length, 2)
+      assert.ok(calls.every((url) => url.startsWith('/api/devices/8/readings/')))
+    })
+  }
+})
+
+test('handles a newly provisioned entity without inventing sensor values', async () => {
+  await withFetch(respond({ id: 'OtherSensor', type: 'WineSensor', alert: '' }), async () => {
+    assert.deepEqual(await getCurrentReadings(9), {
+      id: 'OtherSensor', temperature: null, humidity: null, luminosity: null, measuredAt: null,
+    })
+  })
+})
+
+test('rejects a mismatched historical attribute and embedded upstream error', async () => {
+  await withFetch(respond(historyFixture('humidity', [])), async () => {
+    await assert.rejects(getSensorHistory(1, 'temperature'), /formato esperado/)
+  })
+  await withFetch(respond({ contextResponses: [{ statusCode: { code: '404' } }] }), async () => {
+    await assert.rejects(getSensorHistory(1, 'temperature'), /formato esperado/)
   })
 })
 
@@ -121,7 +168,7 @@ test('preserves intentional caller cancellation as AbortError', async () => {
   await withFetch((_url, { signal }) => new Promise((_resolve, reject) => {
     signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
   }), async () => {
-    const request = getSensorHistory('humidity', 20, { signal: controller.signal, timeoutMs: 1000 })
+    const request = getSensorHistory(1, 'humidity', { signal: controller.signal, timeoutMs: 1000 })
     controller.abort()
     await assert.rejects(request, (error) => error.name === 'AbortError')
   })
@@ -139,7 +186,7 @@ test('keeps the timeout active after immediate headers until the JSON body is re
     })
     return response
   }, async () => {
-    await assert.rejects(getCurrentReadings({ timeoutMs: 100 }), (error) => error.name === 'TimeoutError')
+    await assert.rejects(getCurrentReadings(1, { timeoutMs: 100 }), (error) => error.name === 'TimeoutError')
   })
 })
 
@@ -155,7 +202,7 @@ test('preserves caller cancellation while reading a JSON body', async () => {
     })
     return response
   }, async () => {
-    const request = getCurrentReadings({ signal: controller.signal, timeoutMs: 1000 })
+    const request = getCurrentReadings(1, { signal: controller.signal, timeoutMs: 1000 })
     await started
     controller.abort()
     await assert.rejects(request, (error) => error.name === 'AbortError')
@@ -172,13 +219,13 @@ test('loads and validates the CSRF token and authenticated session', async () =>
       })
     }
     assert.equal(url, '/api/auth/me')
-    return new Response(JSON.stringify({ username: 'wine-manager' }), {
+    return new Response(JSON.stringify({ username: 'wine-manager', role: 'ADMIN' }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     })
   }, async () => {
     assert.deepEqual(await getCsrfToken(), { headerName: 'X-CSRF-TOKEN', token: 'csrf-in-memory' })
-    assert.deepEqual(await getSession(), { username: 'wine-manager' })
+    assert.deepEqual(await getSession(), { username: 'wine-manager', role: 'ADMIN' })
   })
 
   await withFetch(respond({ headerName: 'X-CSRF-TOKEN\r\nInjected', token: 'csrf' }), async () => {
@@ -242,7 +289,7 @@ test('expires the open dashboard on protected 401 without treating session check
     }), async () => {
       await assert.rejects(getSession(), (error) => error instanceof ApiError && error.status === 401)
       assert.equal(expirationCount, 0)
-      await assert.rejects(getCurrentReadings(), (error) => error instanceof ApiError && error.status === 401)
+      await assert.rejects(getCurrentReadings(1), (error) => error instanceof ApiError && error.status === 401)
     })
     assert.equal(expirationCount, 1)
   } finally {
@@ -973,4 +1020,134 @@ test('keeps concurrent same-revision retries isolated by device id', async () =>
     '/api/devices/12/configuration/7/retry',
   ])
   assert.deepEqual(updatedByDevice, { 11: ['UNCONFIRMED', 'APPLIED'], 12: ['UNCONFIRMED', 'APPLIED'] })
+})
+
+test('lists administration accounts without retaining password fields', async () => {
+  const accounts = [
+    { id: 1, username: 'dono', role: 'ADMIN', enabled: true, passwordHash: 'hash-ficticio' },
+    { id: 2, username: 'funcionario', role: 'USER', enabled: true },
+  ]
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/admin/users')
+    assert.equal(options.credentials, 'same-origin')
+    return new Response(JSON.stringify(accounts), { headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    assert.deepEqual(await getAppUsers(), accounts.map(({ id, username, role, enabled }) => ({ id, username, role, enabled, location: null })))
+  })
+})
+
+test('creates an ordinary account with CSRF and no role chosen by the client', async () => {
+  const password = 'Senha-ficticia-123!'
+  let calls = 0
+  await withFetch(async (url, options) => {
+    calls += 1
+    assert.equal(url, '/api/admin/users')
+    assert.equal(options.method, 'POST')
+    assert.equal(options.credentials, 'same-origin')
+    assert.equal(options.headers['X-CSRF-TOKEN'], csrfFixture.token)
+    assert.deepEqual(JSON.parse(options.body), { username: 'novo.usuario', password, location: locationFixture })
+    return new Response(JSON.stringify({ id: 2, username: 'novo.usuario', role: 'USER', enabled: true }), {
+      status: 201, headers: { 'content-type': 'application/json' },
+    })
+  }, async () => {
+    const created = await createAppUser({ username: 'novo.usuario', password, location: locationFixture, role: 'ADMIN' }, csrfFixture)
+    assert.equal(created.role, 'USER')
+    assert.equal('password' in created, false)
+  })
+  assert.equal(calls, 1)
+})
+
+test('rejects invalid account credentials and UTF-8 overflow before sending', async () => {
+  let calls = 0
+  await withFetch(async () => { calls += 1; throw new Error('Não deveria chamar fetch') }, async () => {
+    for (const values of [
+      { username: 'nome com espaco', password: 'Senha-ficticia-123!' },
+      { username: 'ab', password: 'Senha-ficticia-123!' },
+      { username: 'usuario', password: 'curta' },
+      { username: 'usuario', password: 'á'.repeat(37) },
+      { username: 'usuario', password: ' '.repeat(12) },
+    ]) {
+      await assert.rejects(createAppUser(values, csrfFixture))
+    }
+  })
+  assert.equal(calls, 0)
+})
+
+test('does not create an account without a CSRF token', async () => {
+  let calls = 0
+  await withFetch(async () => { calls += 1; throw new Error('Não deveria chamar fetch') }, async () => {
+    await assert.rejects(createAppUser({ username: 'usuario', password: 'Senha-ficticia-123!', location: locationFixture }), /CSRF/)
+  })
+  assert.equal(calls, 0)
+})
+
+test('loads USER session role and rejects absent or unknown roles', async () => {
+  for (const role of ['USER', undefined, 'SUPERADMIN']) {
+    await withFetch(async () => new Response(JSON.stringify({ username: 'usuario', role }), {
+      headers: { 'content-type': 'application/json' },
+    }), async () => {
+      if (role === 'USER') assert.deepEqual(await getSession(), { username: 'usuario', role: 'USER' })
+      else await assert.rejects(getSession(), /sessão/)
+    })
+  }
+})
+
+test('preserves forbidden account creation response without retrying', async () => {
+  let calls = 0
+  await withFetch(async () => {
+    calls += 1
+    return new Response(JSON.stringify({ error: 'Acesso negado.' }), {
+      status: 403, headers: { 'content-type': 'application/json' },
+    })
+  }, async () => {
+    await assert.rejects(createAppUser({ username: 'usuario', password: 'Senha-ficticia-123!', location: locationFixture }, csrfFixture),
+      (error) => error instanceof ApiError && error.status === 403)
+  })
+  assert.equal(calls, 1)
+})
+
+
+test('requires complete winery location before creating an account', async () => {
+  let calls = 0
+  await withFetch(async () => { calls += 1; throw new Error('Não deveria chamar fetch') }, async () => {
+    for (const location of [null, { ...locationFixture, city: ' ' }, { ...locationFixture, wineryName: 'A'.repeat(151) }, { ...locationFixture, latitude: null }, { ...locationFixture, latitude: 91 }, { ...locationFixture, longitude: -181 }, { ...locationFixture, longitude: 1.1234567 }]) {
+      await assert.rejects(createAppUser({ username: 'usuario', password: 'Senha-ficticia-123!', location }, csrfFixture))
+    }
+  })
+  assert.equal(calls, 0)
+})
+
+test('accepts equator and Greenwich without confusing zero with missing coordinates', () => {
+  assert.deepEqual(validateWineryLocation({ ...locationFixture, wineryName: ' Teste ', latitude: 0, longitude: 0 }), {
+    ...locationFixture, wineryName: 'Teste', latitude: 0, longitude: 0,
+  })
+})
+
+test('loads actual map points with same-origin session and drops unrelated fields', async () => {
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/wineries')
+    assert.equal(options.credentials, 'same-origin')
+    return respond([{ id: 3, ...locationFixture, username: 'oculto', devices: [{ temperature: 30 }] }])()
+  }, async () => assert.deepEqual(await getWineries(), [{ id: 3, ...locationFixture }]))
+  await withFetch(respond([]), async () => assert.deepEqual(await getWineries(), []))
+})
+
+test('map rejects malformed points instead of placing fabricated markers', async () => {
+  for (const data of [{}, [{ id: 3, ...locationFixture, latitude: 100 }], [{ id: 3, ...locationFixture, longitude: null }]]) {
+    await withFetch(respond(data), async () => assert.rejects(getWineries()))
+  }
+})
+
+test('map expires the session on 401 without retry or illustrative fallback', async () => {
+  let calls = 0
+  let expired = 0
+  const unsubscribe = subscribeToSessionExpiration(() => { expired += 1 })
+  try {
+    await withFetch(async () => {
+      calls += 1
+      return new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } })
+    }, async () => assert.rejects(getWineries(), (error) => error.status === 401))
+    assert.equal(calls, 1)
+    assert.equal(expired, 1)
+  } finally { unsubscribe() }
 })

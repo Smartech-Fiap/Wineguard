@@ -1,6 +1,6 @@
 # Wineguard — painel web
 
-Painel React e Vite para consultar leituras do sensor WineSensor002 e gerenciar ambientes, dispositivos e limites pela API Wineguard. O frontend usa somente rotas relativas `/api/`; Orion, STH-Comet e MQTT não são acessados diretamente pelo navegador.
+Painel React e Vite para consultar leituras do dispositivo selecionado e gerenciar ambientes, dispositivos e limites pela API Wineguard. O frontend usa somente rotas relativas `/api/`; Orion, STH-Comet e MQTT não são acessados diretamente pelo navegador.
 
 ## Requisitos
 
@@ -16,13 +16,12 @@ npm install
 Crie `.env.local` na raiz do projeto usando `.env.example` como modelo:
 
 ```env
-VITE_API_TARGET=http://<HOST_DO_NODE_EXPRESS>
 VITE_API_JAVA_TARGET=http://<HOST_DA_API_JAVA>
 VITE_API_TIMEOUT_MS=10000
 VITE_API_REFRESH_INTERVAL_MS=30000
 ```
 
-A API Java/Spring Security atende `/api/auth/*`, `/api/environments` e `/api/devices/*`; Node/Express atende `/api/sensors/*`. Autenticação e gestão são encaminhadas ao mesmo serviço Java para compartilhar o cookie de sessão. O Vite preserva métodos, caminhos e corpos das requisições. `VITE_API_JAVA_TARGET` configura o Java e `VITE_API_TARGET` configura o serviço Node/Express (ou sensores podem usar o override opcional `VITE_API_SENSOR_TARGET`). Não configure destinos de autenticação separados: o login Java e as rotas protegidas de gestão precisam compartilhar a sessão. O navegador continua usando somente a origem local e rotas `/api/`. `VITE_API_TIMEOUT_MS` configura o prazo por consulta e `VITE_API_REFRESH_INTERVAL_MS` configura a atualização das leituras e do histórico; ambos são milissegundos. `.env.local` é ignorado pelo Git; não publique nele endereços de infraestrutura. Reinicie o Vite após alterar essa configuração:
+A API Java/Spring Security atende autenticação, administração, gestão, leituras e histórico. Configure `VITE_API_JAVA_TARGET` para a origem HTTPS da API ou para o Java local. Todas as chamadas compartilham o cookie de sessão; o navegador usa apenas rotas relativas `/api/`. As antigas variáveis `VITE_API_TARGET` e `VITE_API_SENSOR_TARGET` não são utilizadas. `VITE_API_TIMEOUT_MS` e `VITE_API_REFRESH_INTERVAL_MS` são prazos em milissegundos. `.env.local` é ignorado pelo Git. Reinicie o Vite após alterar a configuração:
 
 ```bash
 npm run dev
@@ -41,8 +40,8 @@ No desenvolvimento local, o navegador chama `http://localhost:<porta-do-vite>/ap
 ## APIs
 
 - `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me` e `POST /api/auth/logout`: autenticação por sessão e proteção CSRF, atendidas pelo Java. O frontend também envia o token CSRF atual em todos os POST, PUT e DELETE protegidos; não repete escritas automaticamente.
-- `GET /api/sensors/WineSensor002/readings`: leitura atual de temperatura, umidade, luminosidade LDR e data informada pela API.
-- `GET /api/sensors/WineSensor002/history?attribute=<atributo>&limit=20`: até vinte pontos históricos, com `receivedAt` e `value`.
+- `GET /api/devices/{deviceId}/readings/current`: leitura atual autorizada, retornada pelo Orion.
+- `GET /api/devices/{deviceId}/readings/history/{metric}?dateFrom=...&dateTo=...`: histórico autorizado, retornado pelo STH-Comet.
 - `GET /api/environments` e `POST /api/environments`: lista e cria ambientes. A criação envia `name` e `description`; a resposta inclui `id`, `name` e `description`.
 - `GET /api/devices` e `POST /api/devices`: lista e cadastra referências e metadados. A criação envia `name`, `fiwareId`, `mqttDeviceId`, `fiwareType`, `fiwareService`, `fiwareServicePath` e `environmentId`; a resposta também inclui `environmentName` e `active`. `id` é o identificador numérico no banco, `fiwareId` identifica a entidade FIWARE (ex.: `WineSensor002`) e `mqttDeviceId` identifica o cliente MQTT (ex.: `wine002`).
 - `GET /api/devices/{deviceId}/limits` e `PUT /api/devices/{deviceId}/limits`: lista e cria/substitui o limite de uma métrica. Corpo: `metric` (`TEMPERATURE`, `HUMIDITY` ou `LUMINOSITY`), `minimumValue`, `maximumValue` e `unit`. É obrigatório informar ao menos um valor; o mínimo não pode superar o máximo.
@@ -53,9 +52,11 @@ No desenvolvimento local, o navegador chama `http://localhost:<porta-do-vite>/ap
 - `GET /api/devices/{deviceId}/configuration`: retorna e reconcilia a configuração mais recente. A UI apresenta `PENDING`, `APPLIED`, `REJECTED` e `UNCONFIRMED`, revisão, valores, `createdAt`, `confirmedAt` e motivo de rejeição. Só chama valores de ativos após `APPLIED`. Após envio, acompanha por GET a cada 5 segundos por até 45 segundos, sem sobreposição.
 - `POST /api/devices/{deviceId}/configuration/{revision}/retry`: reenvia a revisão já armazenada, sem corpo nem novos valores, com sessão autenticada e token CSRF atual. `200` indica que a revisão já estava confirmada como aplicada e não inicia novo acompanhamento; `202` indica reenvio aceito como `PENDING`, não aplicação física. A ação da UI aparece somente para revisão conhecida `UNCONFIRMED`: consulta o estado antes do POST e pede confirmação para reenviar os valores armazenados. `APPLIED`, `REJECTED`, `PENDING` ou uma revisão alterada bloqueiam o POST. Após `202`, acompanha somente por GET a cada 5 segundos por até 45 segundos, sem sobreposição. Timeout, falha de rede ou `502` nunca repetem automaticamente o POST e provocam uma consulta de estado; `409` apresenta o bloqueio e permite nova consulta.
 
-A API Java também documenta `/api/devices/{deviceId}/readings/current` e `/api/devices/{deviceId}/readings/history/{metric}`, para consultas Orion/STH-Comet. O dashboard continua usando as rotas Express existentes para suas leituras atuais e históricas. Preserve esses prefixos e caminhos na publicação.
+As leituras usam `GET /api/devices/{deviceId}/readings/current`, com resposta Orion `keyValues` (`TimeInstant` normalizado como `measuredAt`). O histórico usa `GET /api/devices/{deviceId}/readings/history/{metric}?dateFrom=...&dateTo=...`, com métricas `TEMPERATURE`, `HUMIDITY` e `LUMINOSITY`. O painel consulta uma janela móvel de 24 horas e exibe até 20 registros da primeira página retornada pelo backend, sem alegar que são os 20 mais recentes. A resposta bruta do STH-Comet é convertida em pontos e ordenada por horário.
 
-Os atributos históricos Express aceitos são `temperature`, `humidity` e `luminosity`; `limit` aceita valores de 1 a 100. A luminosidade é mostrada sem unidade física, pois a escala LDR ainda não foi calibrada. Horários são exibidos no fuso local do navegador.
+A lista de dispositivos vem da API Java: USER acessa seus próprios sensores e ADMIN acessa todos. A autorização deve ser aplicada no backend para cada operação. Sem dispositivos, o painel não consulta telemetria. Leituras e histórico ficam vinculados à conta e ao dispositivo selecionado, com cancelamento de consultas antigas ao trocar de seleção; dados da sessão anterior são descartados no novo login. Não existe fallback para `/api/sensors/*`. Na implantação, mantenha essas rotas antigas bloqueadas em HTTP e HTTPS e as portas internas inacessíveis publicamente.
+
+A luminosidade é mostrada como ADC bruto, sem unidade física calibrada. Horários usam o fuso do navegador.
 
 Leituras e histórico têm estados independentes de carregamento, erro, timeout e ausência de dados; uma falha de atualização preserva a última resposta bem-sucedida. A navegação mobile oferece links diretos para as seções disponíveis.
 
@@ -63,11 +64,15 @@ Leituras atuais e histórico são consultados a cada 30 segundos, sem sobreposi�
 
 O polling das leituras é uma consulta de dados, não um mecanismo de keep-alive intencional. O serviço de autenticação precisa definir com a equipe se chamadas de leitura renovam o timeout ocioso e garantir que polling não mantenha sessões vivas indefinidamente. O teste de sessão só está concluído após verificar essa regra em ambiente real.
 
-## Mapa global
+## Usuários e mapa global
 
-O mapa usa Leaflet com tiles do OpenStreetMap (com atribuição exibida no mapa). Até a API de propriedades fornecer coordenadas reais, os cinco marcadores representam regiões vitivinícolas ilustrativas; não identificam vinícolas reais nem usam dados de sensores. O resumo abre por hover ou toque/clique no marcador.
+Somente ADMIN acessa a seção Usuários e as rotas `/api/admin/users`. Novas contas têm perfil USER; o formulário não permite escolher um perfil superior. O cadastro envia `{username, password, location}`. `location` contém `wineryName`, `city`, `region`, `country`, `latitude` e `longitude`. Os textos são obrigatórios; coordenadas aceitam até seis casas decimais, latitude −90..90 e longitude −180..180. A conta ADMIN existente não precisa de localização. Contas antigas sem localização continuam listadas na administração, mas não recebem um ponto inventado no mapa.
 
-Na próxima integração do mapa, substitua a lista ilustrativa em `src/VineyardMap.jsx` pela API de propriedades, com identificador, nome, região, país e coordenadas `latitude`/`longitude`.
+O administrador informa a localização manualmente e pode clicar no mapa ou digitar coordenadas. O mapa não faz geocodificação nem verifica se o endereço digitado corresponde ao ponto escolhido; confirme a posição antes de cadastrar. Senhas não são armazenadas no navegador e são limpas após a tentativa de envio. Uma resposta ambígua nunca repete automaticamente o cadastro: confira a lista antes de tentar novamente.
+
+O mapa global consulta `GET /api/wineries` com a sessão autenticada. Todos os perfis veem as vinícolas retornadas, com nome, cidade, região, país e coordenadas; a resposta não deve incluir contas ou sensores. Não há marcadores ilustrativos de fallback. A tela oferece carregamento, erro, lista vazia e atualização manual. Após criar uma conta, o mapa é atualizado. Leaflet usa tiles do OpenStreetMap, com atribuição exibida.
+
+Na publicação, encaminhe `/api/wineries` e `/api/wineries/` para a mesma API Java usada pela autenticação, como já ocorre no proxy local do Vite. O backend deve filtrar contas desabilitadas ou sem localização; o frontend não substitui essa regra.
 
 ## Ambientes, dispositivos, limites e ESP
 
@@ -89,11 +94,11 @@ npm run build
 
 O Java e o Node/Express coexistem; o Java não substitui automaticamente o serviço Express existente na EC2. As notas do backend descrevem uma topologia sugerida para AWS, não uma implantação realizada ou uma pipeline confirmada. Publique cada serviço pela pipeline definida pela equipe; não use o servidor de desenvolvimento do Vite em produção.
 
-1. **Node/Express existente:** preserve sua implantação atual e as rotas `/api/sensors/*`.
+1. **Rotas antigas:** bloqueie `/api/sensors` e `/api/sensors/*` em todos os acessos públicos, inclusive HTTP e HTTPS. O painel não utiliza mais a telemetria pública do Express.
 2. **API Java:** publique a aplicação Spring Boot com `/api/auth/*`, `/api/environments` e `/api/devices/*`, PostgreSQL/Flyway e conectividade às dependências FIWARE necessárias; confira `/actuator/health`. Armazene segredos no serviço de execução, não no repositório ou imagem.
 3. **Frontend:** execute `npm ci`, `npm run lint`, `npm test` e `npm run build`; publique o conteúdo de `dist` no serviço web estático e configure fallback para `index.html` se necessário.
 
-No Nginx/gateway que atende o frontend, encaminhe `/api/auth/`, `/api/environments` e `/api/devices/` à mesma API Java; `/api/sensors/` continua no Node/Express. Preserve prefixos e caminhos. Exemplo conceitual:
+No Nginx/gateway que atende o frontend, encaminhe `/api/auth/`, `/api/environments` e `/api/devices/` à mesma API Java; `/api/admin/` também deve ir para o Java. As rotas antigas `/api/sensors` e `/api/sensors/` devem retornar 404. Preserve prefixos e caminhos. Exemplo conceitual:
 
 ```nginx
 location /api/auth/ {
@@ -103,8 +108,11 @@ location /api/auth/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
 
-location /api/sensors/ {
-    proxy_pass http://wineguard_node;
+location = /api/sensors { return 404; }
+location /api/sensors/ { return 404; }
+
+location /api/admin/ {
+    proxy_pass http://wineguard_java;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

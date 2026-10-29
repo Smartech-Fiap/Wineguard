@@ -1,4 +1,3 @@
-const SENSOR_ID = 'WineSensor002'
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_REFRESH_INTERVAL_MS = 30000
 
@@ -322,10 +321,77 @@ export async function login(username, password, csrf, options = {}) {
 
 export async function getSession(options) {
   const data = await getJson('/api/auth/me', options)
-  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.username !== 'string' || data.username.trim() === '') {
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.username !== 'string' || data.username.trim() === '' || !['ADMIN', 'USER'].includes(data.role)) {
     throw new Error('A resposta da sessão não corresponde ao formato esperado.')
   }
-  return { username: data.username }
+  return { username: data.username, role: data.role }
+}
+
+export function validateWineryLocation(data) {
+  const location = {}
+  for (const [field, maximum] of Object.entries({ wineryName: 150, city: 100, region: 100, country: 100 })) {
+    if (typeof data?.[field] !== 'string' || !data[field].trim() || data[field].length > maximum) {
+      throw new Error('Preencha nome da vinícola, cidade, estado/região e país dentro dos limites informados.')
+    }
+    location[field] = data[field].trim()
+  }
+  for (const [field, maximum] of Object.entries({ latitude: 90, longitude: 180 })) {
+    const value = data[field]
+    if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > maximum ||
+        Number(value.toFixed(6)) !== value) {
+      throw new Error('Informe latitude entre −90 e 90 e longitude entre −180 e 180, com até seis casas decimais.')
+    }
+    location[field] = value
+  }
+  return location
+}
+
+export async function getWineries(options) {
+  const data = await getJson('/api/wineries', { ...options, protectedRequest: true })
+  if (!Array.isArray(data)) throw new Error('A resposta do mapa não corresponde ao formato esperado.')
+  return data.map((point) => {
+    validateDeviceId(point?.id)
+    return { id: point.id, ...validateWineryLocation(point) }
+  })
+}
+
+function validateAppUser(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data) ||
+      !Number.isInteger(data.id) || data.id < 1 ||
+      typeof data.username !== 'string' || !data.username.trim() ||
+      !['ADMIN', 'USER'].includes(data.role) || typeof data.enabled !== 'boolean') {
+    throw new Error('A resposta do cadastro de usuário não corresponde ao formato esperado.')
+  }
+  return {
+    id: data.id, username: data.username, role: data.role, enabled: data.enabled,
+    location: data.location == null ? null : validateWineryLocation(data.location),
+  }
+}
+
+export async function getAppUsers(options) {
+  const data = await getJson('/api/admin/users', { ...options, protectedRequest: true })
+  if (!Array.isArray(data)) throw new Error('A resposta da lista de usuários não corresponde ao formato esperado.')
+  return data.map(validateAppUser)
+}
+
+export async function createAppUser(values, csrf, options) {
+  const username = typeof values?.username === 'string' ? values.username.trim() : ''
+  const password = values?.password
+  if (!/^[A-Za-z0-9._-]{3,100}$/.test(username)) {
+    throw new Error('O usuário deve ter de 3 a 100 caracteres: letras sem acentos, números, ponto, hífen ou sublinhado.')
+  }
+  if (typeof password !== 'string' || !password.trim() || password.length < 12 ||
+      password.length > 72 || new TextEncoder().encode(password).length > 72) {
+    throw new Error('A senha deve ter pelo menos 12 caracteres e ocupar no máximo 72 bytes em UTF-8.')
+  }
+  const location = validateWineryLocation(values?.location)
+  return validateAppUser(await getJson('/api/admin/users', {
+    ...options,
+    method: 'POST',
+    headers: withCsrfHeaders(csrf, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ username, password, location }),
+    protectedRequest: true,
+  }, 201))
 }
 
 export async function logout(csrf, options = {}) {
@@ -342,48 +408,56 @@ export async function logout(csrf, options = {}) {
   }
 }
 
-export async function getCurrentReadings(options) {
-  const data = await getJson(`/api/sensors/${SENSOR_ID}/readings`, { ...options, protectedRequest: true })
-  if (!data || typeof data !== 'object' || Array.isArray(data) || data.id !== SENSOR_ID || !('temperature' in data) || !('humidity' in data) || !('luminosity' in data) || !('measuredAt' in data)) {
+export async function getCurrentReadings(deviceId, options) {
+  validateDeviceId(deviceId)
+  const data = await getJson(`/api/devices/${deviceId}/readings/current`, { ...options, protectedRequest: true })
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.id !== 'string' || !data.id.trim()) {
     throw new Error('A resposta de leituras não corresponde ao formato esperado.')
   }
-  if (!isNumberOrNull(data.temperature) || !isNumberOrNull(data.humidity) || !isNumberOrNull(data.luminosity) || !(data.measuredAt === null || isValidTimestamp(data.measuredAt))) {
+  const { id, temperature = null, humidity = null, luminosity = null, TimeInstant: measuredAt = null } = data
+  if (!isNumberOrNull(temperature) || !isNumberOrNull(humidity) || !isNumberOrNull(luminosity) || !(measuredAt === null || isValidTimestamp(measuredAt))) {
     throw new Error('A resposta de leituras contém valores ou data inválidos.')
   }
-  return data
+  return { id, temperature, humidity, luminosity, measuredAt }
 }
 
-export async function getSensorHistory(attribute, limit = 20, options) {
+export async function getSensorHistory(deviceId, attribute, options) {
+  validateDeviceId(deviceId)
   if (!['temperature', 'humidity', 'luminosity'].includes(attribute)) {
     throw new Error('Atributo histórico inválido.')
   }
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    throw new Error('O limite do histórico deve ser um inteiro entre 1 e 100.')
-  }
-  const params = new URLSearchParams({ attribute, limit: String(limit) })
-  const data = await getJson(`/api/sensors/${SENSOR_ID}/history?${params}`, { ...options, protectedRequest: true })
-  if (!data || typeof data !== 'object' || Array.isArray(data) || data.id !== SENSOR_ID || data.attribute !== attribute || !Array.isArray(data.points)) {
+  const dateTo = new Date()
+  const dateFrom = new Date(dateTo.getTime() - 24 * 60 * 60 * 1000)
+  const params = new URLSearchParams({ dateFrom: dateFrom.toISOString(), dateTo: dateTo.toISOString() })
+  const data = await getJson(`/api/devices/${deviceId}/readings/history/${attribute.toUpperCase()}?${params}`, { ...options, protectedRequest: true })
+  if (!Array.isArray(data?.contextResponses)) {
     throw new Error('A resposta do histórico não corresponde ao formato esperado.')
   }
 
-  if (!Number.isInteger(data.count) || data.count < 0 || data.count !== data.points.length) {
-    throw new Error('A contagem do histórico não corresponde aos pontos retornados.')
-  }
-  const points = data.points.map((point) => {
-    if (!point || typeof point !== 'object' || !isNumberOrNull(point.value) || !isValidTimestamp(point.receivedAt)) {
+  const values = data.contextResponses.flatMap((entry) => {
+    if (String(entry?.statusCode?.code) !== '200' || !Array.isArray(entry.contextElement?.attributes)) {
+      throw new Error('A resposta do histórico não corresponde ao formato esperado.')
+    }
+    return entry.contextElement.attributes.flatMap((item) => {
+      if (item.name !== attribute || !Array.isArray(item.values)) throw new Error('A resposta do histórico não corresponde ao formato esperado.')
+      return item.values
+    })
+  })
+  const points = values.map((point) => {
+    if (!point || typeof point.attrValue !== 'number' || !Number.isFinite(point.attrValue) || !isValidTimestamp(point.recvTime)) {
       throw new Error('O histórico contém pontos inválidos.')
     }
     return {
-      value: point.value,
-      receivedAt: point.receivedAt,
-      timestamp: Date.parse(point.receivedAt),
+      value: point.attrValue,
+      receivedAt: point.recvTime,
+      timestamp: Date.parse(point.recvTime),
     }
   })
   if (points.some((point) => point.value === null)) {
     throw new Error('O histórico contém pontos inválidos.')
   }
 
-  return points
+  return points.sort((a, b) => a.timestamp - b.timestamp)
 }
 
 export async function getEnvironments(options) {

@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import { getWineries } from './api.js'
 import 'leaflet/dist/leaflet.css'
-
-const exampleProperties = [
-  { id: 'napa', name: 'Vinícola de exemplo · Napa Valley', region: 'Napa Valley', country: 'Estados Unidos', position: [38.2975, -122.2869] },
-  { id: 'douro', name: 'Vinícola de exemplo · Douro', region: 'Vale do Douro', country: 'Portugal', position: [41.1579, -7.7986] },
-  { id: 'tuscany', name: 'Vinícola de exemplo · Toscana', region: 'Toscana', country: 'Itália', position: [43.3188, 11.3308] },
-  { id: 'mendoza', name: 'Vinícola de exemplo · Mendoza', region: 'Mendoza', country: 'Argentina', position: [-32.8895, -68.8458] },
-  { id: 'marlborough', name: 'Vinícola de exemplo · Marlborough', region: 'Marlborough', country: 'Nova Zelândia', position: [-41.5134, 173.9612] },
-]
 
 const markerIcon = L.divIcon({
   className: 'vineyard-marker',
@@ -18,32 +11,65 @@ const markerIcon = L.divIcon({
   iconAnchor: [17, 38],
 })
 
-function FitProperties() {
+function FitProperties({ properties }) {
   const map = useMap()
 
   useEffect(() => {
-    const bounds = L.latLngBounds(exampleProperties.map((property) => property.position))
-    map.fitBounds(bounds, { padding: [28, 28], maxZoom: 2 })
-  }, [map])
+    if (properties.length) {
+      const bounds = L.latLngBounds(properties.map((property) => property.position))
+      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 10 })
+    } else {
+      map.setView([18, 8], 1)
+    }
+  }, [map, properties])
 
   return null
 }
 
-export default function VineyardMap({ onOpenDetails }) {
+export default function VineyardMap({ onOpenDetails, refreshKey }) {
+  const [properties, setProperties] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getWineries({ signal: controller.signal }).then((points) => {
+      if (controller.signal.aborted) return
+      setProperties(points.map((point) => ({
+        id: point.id, name: point.wineryName, city: point.city,
+        region: point.region, country: point.country,
+        position: [point.latitude, point.longitude],
+      })))
+      setError('')
+    }).catch((failure) => {
+      if (!controller.signal.aborted) {
+        setProperties([])
+        setError(failure.message)
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
+  }, [refreshKey, reload])
+
   const [hoveredId, setHoveredId] = useState(null)
   const [pinnedId, setPinnedId] = useState(null)
   const visibleId = pinnedId || hoveredId
-  const visibleProperty = exampleProperties.find((property) => property.id === visibleId)
+  const visibleProperty = properties.find((property) => property.id === visibleId)
 
   return (
     <section className="panel vineyard-map-panel" aria-labelledby="vineyard-map-title">
       <div className="panel-heading vineyard-map-heading">
         <div>
           <h2 id="vineyard-map-title">Vinícolas pelo mundo</h2>
-          <p>Explore propriedades vitivinícolas nos principais continentes</p>
+          <p>Vinícolas cadastradas · localização compartilhada, sensores privados</p>
         </div>
-        <span className="map-demo-badge">Localizações ilustrativas</span>
+        <button className="secondary-button" type="button" disabled={loading} onClick={() => { setLoading(true); setError(''); setReload((value) => value + 1) }}>Atualizar mapa</button>
       </div>
+      {loading && <p role="status">Carregando localizações…</p>}
+      {error && <p className="form-error" role="alert">Não foi possível carregar o mapa: {error}</p>}
+      {!loading && !error && properties.length === 0 && <p>Nenhuma vinícola com localização cadastrada.</p>}
       <div className="vineyard-map-layout">
         <div className="vineyard-map">
           <MapContainer
@@ -55,12 +81,12 @@ export default function VineyardMap({ onOpenDetails }) {
             worldCopyJump
             aria-label="Mapa global de propriedades vitivinícolas"
           >
-            <FitProperties />
+            <FitProperties properties={properties} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {exampleProperties.map((property) => (
+            {properties.map((property) => (
               <Marker
                 key={property.id}
                 position={property.position}
@@ -77,17 +103,17 @@ export default function VineyardMap({ onOpenDetails }) {
           {visibleProperty && (
             <article className={`map-property-preview ${pinnedId === visibleProperty.id ? 'pinned-preview' : 'hover-preview'}`} aria-live="polite">
               <button className="map-preview-close" onClick={() => setPinnedId(null)} aria-label="Fechar resumo">×</button>
-              <span className="map-preview-eyebrow">PROPRIEDADE · DADOS DE EXEMPLO</span>
+              <span className="map-preview-eyebrow">VINÍCOLA CADASTRADA</span>
               <h3>{visibleProperty.name}</h3>
-              <p>{visibleProperty.region} · {visibleProperty.country}</p>
-              <span className="map-preview-pending">Aguardando integração com o backend</span>
+              <p>{visibleProperty.city} · {visibleProperty.region} · {visibleProperty.country}</p>
+              <span className="map-preview-pending">Localização informada pelo administrador</span>
               <button className="map-details-button" onClick={(event) => onOpenDetails(visibleProperty, event.currentTarget)}>Ver detalhes da vinícola <span aria-hidden="true">→</span></button>
             </article>
           )}
         </div>
-        <aside className="map-property-list" aria-label="Regiões vitivinícolas de exemplo">
-          <div className="map-list-heading"><strong>Regiões no mapa</strong><span>{exampleProperties.length}</span></div>
-          {exampleProperties.map((property) => (
+        <aside className="map-property-list" aria-label="Vinícolas cadastradas">
+          <div className="map-list-heading"><strong>Vinícolas no mapa</strong><span>{properties.length}</span></div>
+          {properties.map((property) => (
             <button
               className={`map-property-item ${pinnedId === property.id ? 'selected' : ''}`}
               key={property.id}
@@ -98,10 +124,10 @@ export default function VineyardMap({ onOpenDetails }) {
               onClick={() => setPinnedId(property.id)}
             >
               <span className="map-list-pin" aria-hidden="true">📍</span>
-              <span><strong>{property.region}</strong><small>{property.country}</small></span>
+              <span><strong>{property.name}</strong><small>{property.city} · {property.country}</small></span>
             </button>
           ))}
-          <p className="map-list-note">Os marcadores atuais são ilustrativos. As coordenadas reais serão carregadas da API de propriedades.</p>
+          <p className="map-list-note">O mapa compartilha apenas nome e localização. Leituras e dispositivos não são exibidos.</p>
         </aside>
       </div>
     </section>
@@ -150,11 +176,11 @@ export function VineyardDetails({ property, onClose }) {
     <div className="vineyard-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section className="vineyard-modal" ref={dialogRef} onKeyDown={trapDialogFocus} role="dialog" aria-modal="true" aria-labelledby="vineyard-modal-title" tabIndex="-1">
         <button className="vineyard-modal-close" ref={closeButtonRef} onClick={onClose} aria-label="Fechar detalhes">×</button>
-        <span className="map-preview-eyebrow">DETALHES · LOCALIZAÇÃO ILUSTRATIVA</span>
+        <span className="map-preview-eyebrow">DETALHES · LOCALIZAÇÃO CADASTRADA</span>
         <h2 id="vineyard-modal-title">{property.name}</h2>
-        <p className="vineyard-modal-region">{property.region} · {property.country}</p>
+        <p className="vineyard-modal-region">{property.city} · {property.region} · {property.country}</p>
         <div className="vineyard-coordinates"><span>Latitude <strong>{property.position[0].toFixed(4)}°</strong></span><span>Longitude <strong>{property.position[1].toFixed(4)}°</strong></span></div>
-        <p className="vineyard-modal-note">Esta propriedade e suas coordenadas são exemplos para demonstrar o mapa. Os dados reais serão exibidos quando a API de propriedades estiver disponível.</p>
+        <p className="vineyard-modal-note">Localização informada no cadastro da conta. Os dados dos sensores permanecem restritos ao proprietário e ao administrador.</p>
         <button className="map-details-button" onClick={onClose}>Voltar ao mapa</button>
       </section>
     </div>

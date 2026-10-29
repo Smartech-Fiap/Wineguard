@@ -54,6 +54,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .nav-link { position: relative; display: flex; align-items: center; width: 100%; gap: 12px; height: 42px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: #aab5b8; text-align: left; font-size: 12px; font-weight: 500; transition: background .18s, color .18s; }
 .nav-link:hover { background: #3b2b35; color: #fff; }
 .nav-link.active { color: #f2e3e9; background: #49303d; font-weight: 600; }
+.mobile-nav a.active { background: #f7eff2; color: #71354a; font-weight: 650; }
 .nav-link.active::before { position: absolute; content: ""; left: -16px; height: 22px; width: 3px; border-radius: 0 4px 4px 0; background: #d79aad; }
 .nav-link-disabled { opacity: .68; cursor: not-allowed; }
 .nav-link-disabled .nav-count { width: auto; height: auto; padding: 4px 5px; color: #d8bac5; font-size: 8px; }
@@ -502,3 +503,6 @@ h1 { color: #202b35; margin: 0; letter-spacing: -1.15px; font-size: 25px; line-h
   .map-property-item strong { font-size: 10px; }
   .device-readings { gap: 8px; }
 }
+
+.location-picker { height: 260px; min-width: 0; border: 1px solid #e9e5e1; border-radius: 8px; overflow: hidden; isolation: isolate; }
+.location-picker .leaflet-container { height: 100%; width: 100%; }

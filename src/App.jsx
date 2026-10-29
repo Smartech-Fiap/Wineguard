@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_REFRESH_INTERVAL_MS, ApiError, createDevice, createEnvironment, deleteDevice, getCsrfToken, getCurrentReadings, getDeviceConfiguration, getDeviceLimits, getDevices, getEnvironments, getSensorHistory, getSession, login, logout as endSession, provisionDevice, retryAndWatchDeviceConfiguration, saveDeviceLimit, sendDeviceAlert, subscribeToSessionExpiration, submitAndWatchDeviceConfiguration, validateDeviceConfigurationValues, watchDeviceConfiguration } from './api.js'
 import VineyardMap, { VineyardDetails } from './VineyardMap.jsx'
+import AdminUsersPanel from './AdminUsersPanel.jsx'
+
+const navigationItems = [
+  { id: 'inicio', label: 'Visão geral', icon: 'grid' },
+  { id: 'mapa-vinicolas', label: 'Mapa global', mobileLabel: 'Mapa', icon: 'grapes' },
+  { id: 'historico', label: 'Histórico', icon: 'chart' },
+  { id: 'ambientes', label: 'Ambientes', icon: 'grapes' },
+  { id: 'dispositivos', label: 'Dispositivos', icon: 'devices' },
+  { id: 'limites', label: 'Limites', icon: 'settings' },
+  { id: 'configuracao-esp', label: 'Configuração ESP', mobileLabel: 'ESP', icon: 'settings' },
+  { id: 'usuarios', label: 'Usuários', icon: 'devices' },
+]
 
 const metrics = {
   temperature: { label: 'Temperatura', unit: '°C', color: '#914559', fill: '#f8edf0', icon: 'temperature' },
@@ -327,7 +339,9 @@ function DeviceConfigurationPanel({
 
 function App() {
   const [authStatus, setAuthStatus] = useState('checking')
+  const [activeSection, setActiveSection] = useState('inicio')
   const [user, setUser] = useState(null)
+  const visibleNavigationItems = navigationItems.filter((item) => item.id !== 'usuarios' || user?.role === 'ADMIN')
   const [csrf, setCsrf] = useState(null)
   const [authError, setAuthError] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
@@ -335,12 +349,12 @@ function App() {
   const [logoutError, setLogoutError] = useState('')
   const [logoutRetryAllowed, setLogoutRetryAllowed] = useState(true)
   const [sessionWarning, setSessionWarning] = useState('')
-  const [readings, setReadings] = useState(null)
+  const [readingsResult, setReadings] = useState(null)
   const [readingsError, setReadingsError] = useState('')
   const [readingsLoading, setReadingsLoading] = useState(true)
   const [readingsRetry, setReadingsRetry] = useState(0)
   const [metric, setMetric] = useState('temperature')
-  const [history, setHistory] = useState([])
+  const [historyResult, setHistory] = useState(null)
   const [historyAttribute, setHistoryAttribute] = useState('')
   const [historyError, setHistoryError] = useState('')
   const [historyLoading, setHistoryLoading] = useState(true)
@@ -355,7 +369,7 @@ function App() {
   const [environmentBusy, setEnvironmentBusy] = useState(false)
   const [environmentSaveError, setEnvironmentSaveError] = useState('')
   const [environmentSaveSuccess, setEnvironmentSaveSuccess] = useState('')
-  const [devices, setDevices] = useState([])
+  const [deviceStore, setDeviceStore] = useState(null)
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [devicesError, setDevicesError] = useState('')
   const [devicesRetry, setDevicesRetry] = useState(0)
@@ -392,11 +406,28 @@ function App() {
   const [configurationNeedsVerification, setConfigurationNeedsVerification] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [selectedVineyard, setSelectedVineyard] = useState(null)
+  const [wineryMapRevision, setWineryMapRevision] = useState(0)
   const vineyardTriggerRef = useRef(null)
   const sessionExpiredRef = useRef(false)
   const lastSessionCheckRef = useRef(0)
   const configurationControllerRef = useRef(null)
   const selectedConfigurationDeviceRef = useRef(null)
+
+  const devices = deviceStore && deviceStore.username === user?.username ? deviceStore.items : []
+  const setDevices = useCallback((update) => {
+    setDeviceStore((current) => ({
+      username: user?.username,
+      items: typeof update === 'function'
+        ? update(current?.username === user?.username ? current.items : []) : update,
+    }))
+  }, [user?.username])
+  const activeDevice = devices.find((device) => device.id === selectedLimitDevice) ?? devices[0] ?? null
+  const activeLimitDevice = activeDevice?.id ?? null
+  const dataScope = authStatus === 'authenticated' && activeDevice
+    ? JSON.stringify([user.username, activeDevice.id]) : null
+  const readings = dataScope && readingsResult?.scope === dataScope ? readingsResult.data : null
+  const historyScope = dataScope ? `${dataScope}:${metric}` : null
+  const history = historyScope && historyResult?.scope === historyScope ? historyResult.data : []
 
   useEffect(() => () => configurationControllerRef.current?.abort(), [])
 
@@ -531,6 +562,17 @@ function App() {
       setEnvironmentsLoading(true)
       setDevicesLoading(true)
       setConfigurationLoading(true)
+      setDeviceStore(null)
+      setReadings(null)
+      setHistory(null)
+      setReadingsError('')
+      setHistoryError('')
+      setDeviceLimits([])
+      setDeviceConfiguration(null)
+      setDeviceActionMessages({})
+      setDeviceSaveSuccess('')
+      setDeviceSaveError('')
+      setSelectedLimitDevice(null)
       setUser(session)
       setCsrf(refreshedToken)
       setAuthStatus('authenticated')
@@ -590,7 +632,7 @@ function App() {
   }, [selectedVineyard])
 
   useEffect(() => {
-    if (authStatus !== 'authenticated') return undefined
+    if (authStatus !== 'authenticated' || activeLimitDevice === null) return undefined
     let active = true
     let inFlight = false
     let controller
@@ -601,14 +643,17 @@ function App() {
       inFlight = true
       controller = new AbortController()
       try {
-        const data = await getCurrentReadings({ signal: controller.signal })
+        const data = await getCurrentReadings(activeLimitDevice, { signal: controller.signal })
         if (active) {
-          setReadings(data)
+          setReadings({ scope: dataScope, data })
           setReadingsError('')
           setNow(new Date())
         }
       } catch (error) {
-        if (active && error.name !== 'AbortError') setReadingsError(error.message)
+        if (active && error.name !== 'AbortError') {
+          setReadingsError(error.message)
+          if (error instanceof ApiError && [403, 404].includes(error.status)) setReadings(null)
+        }
       } finally {
         inFlight = false
         if (active) setReadingsLoading(false)
@@ -622,10 +667,10 @@ function App() {
       window.clearInterval(timer)
       controller?.abort()
     }
-  }, [authStatus, readingsRetry])
+  }, [authStatus, activeLimitDevice, dataScope, readingsRetry])
 
   useEffect(() => {
-    if (authStatus !== 'authenticated') return undefined
+    if (authStatus !== 'authenticated' || activeLimitDevice === null) return undefined
     let active = true
     let inFlight = false
     let controller
@@ -638,16 +683,19 @@ function App() {
       setHistoryLoading(true)
       setHistoryError('')
       try {
-        const points = await getSensorHistory(metric, 20, { signal: controller.signal })
+        const points = await getSensorHistory(activeLimitDevice, metric, { signal: controller.signal })
         if (active) {
-          setHistory(points)
+          setHistory({ scope: historyScope, data: points })
           setHistoryAttribute(metric)
           setHistoryError('')
           setHistoryUpdatedAt(new Date())
           setHistoryUpdatedMetric(metric)
         }
       } catch (error) {
-        if (active && error.name !== 'AbortError') setHistoryError(error.message)
+        if (active && error.name !== 'AbortError') {
+          setHistoryError(error.message)
+          if (error instanceof ApiError && [403, 404].includes(error.status)) setHistory(null)
+        }
       } finally {
         inFlight = false
         if (active) setHistoryLoading(false)
@@ -661,7 +709,7 @@ function App() {
       window.clearInterval(timer)
       controller?.abort()
     }
-  }, [authStatus, metric, historyRetry])
+  }, [authStatus, activeLimitDevice, historyScope, metric, historyRetry])
 
   useEffect(() => {
     if (authStatus !== 'authenticated') return undefined
@@ -699,11 +747,54 @@ function App() {
       active = false
       controller.abort()
     }
-  }, [authStatus, devicesRetry])
+  }, [authStatus, devicesRetry, setDevices])
 
-  const activeLimitDevice = devices.some((device) => device.id === selectedLimitDevice)
-    ? selectedLimitDevice
-    : devices[0]?.id ?? null
+
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return undefined
+    let frame = 0
+
+    const updateActiveSection = () => {
+      frame = 0
+      const activationLine = Math.min(160, window.innerHeight * 0.25)
+      const atBottom = window.scrollY > 0 &&
+        window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+      let current = 'inicio'
+      let closestTop = -Infinity
+
+      for (const item of navigationItems) {
+        const section = document.getElementById(item.id)
+        if (!section) continue
+        const top = section.getBoundingClientRect().top
+        if ((top <= activationLine || atBottom) && top > closestTop) {
+          current = item.id
+          closestTop = top
+        }
+      }
+
+      setActiveSection(current)
+    }
+
+    const scheduleUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateActiveSection)
+    }
+
+    window.addEventListener('scroll', scheduleUpdate, { passive: true })
+    window.addEventListener('resize', scheduleUpdate)
+    window.addEventListener('hashchange', scheduleUpdate)
+    const content = document.getElementById('inicio')
+    const observer = new ResizeObserver(scheduleUpdate)
+    if (content) observer.observe(content)
+    scheduleUpdate()
+
+    return () => {
+      window.removeEventListener('scroll', scheduleUpdate)
+      window.removeEventListener('resize', scheduleUpdate)
+      window.removeEventListener('hashchange', scheduleUpdate)
+      observer.disconnect()
+      window.cancelAnimationFrame(frame)
+    }
+  }, [authStatus, activeLimitDevice])
 
   useEffect(() => {
     if (authStatus !== 'authenticated' || activeLimitDevice === null) return undefined
@@ -1061,6 +1152,25 @@ function App() {
     }
   }
 
+  const selectDevice = (event) => {
+    const nextDeviceId = Number(event.target.value)
+    cancelConfigurationTracking()
+    selectedConfigurationDeviceRef.current = nextDeviceId
+    setLimitsLoading(true)
+    setLimitsError('')
+    setConfigurationLoading(true)
+    setConfigurationError('')
+    setConfigurationSubmissionError('')
+    setConfigurationTimedOut(false)
+    setConfigurationNeedsVerification(false)
+    setDeviceConfiguration(null)
+    setReadingsLoading(true)
+    setReadingsError('')
+    setHistoryLoading(true)
+    setHistoryError('')
+    setSelectedLimitDevice(nextDeviceId)
+  }
+
   const currentValues = useMemo(() => ({
     temperature: readings?.temperature,
     humidity: readings?.humidity,
@@ -1089,7 +1199,7 @@ function App() {
     setLimitsError('')
     setLimitsRetry((current) => current + 1)
   }
-  const hasCurrentHistory = historyAttribute === metric
+  const hasCurrentHistory = Boolean(historyScope && historyResult?.scope === historyScope && historyAttribute === metric)
 
   if (authStatus === 'checking') {
     return <main className="auth-page"><p className="auth-status" role="status">Verificando sessão…</p></main>
@@ -1106,16 +1216,20 @@ function App() {
       <aside className="sidebar" inert={Boolean(selectedVineyard)}>
         <a className="brand" href="#inicio" aria-label="Wineguard — início"><span className="brand-mark"><Icon name="grapes" size={22} /></span><span>wineguard<span className="brand-dot">.</span></span></a>
         <div className="workspace-label">PROPRIEDADE</div>
-        <div className="workspace-card"><span className="workspace-avatar"><Icon name="grapes" size={17} /></span><span className="workspace-name">WineSensor002<small>Sensor monitorado</small></span><Icon name="down" size={15} /></div>
+        <div className="workspace-card"><span className="workspace-avatar"><Icon name="grapes" size={17} /></span><span className="workspace-name">{activeDevice?.name ?? 'Nenhum dispositivo'}<small>Sensor selecionado</small></span><Icon name="down" size={15} /></div>
         <div className="nav-label">MENU PRINCIPAL</div>
         <nav className="main-nav" aria-label="Menu principal">
-          <a className="nav-link active" href="#inicio"><Icon name="grid" /> Visão geral</a>
-          <a className="nav-link" href="#mapa-vinicolas"><Icon name="grapes" /> Mapa global</a>
-          <a className="nav-link" href="#ambientes"><Icon name="grapes" /> Ambientes</a>
-          <a className="nav-link" href="#dispositivos"><Icon name="devices" /> Dispositivos</a>
-          <a className="nav-link" href="#limites"><Icon name="settings" /> Limites</a>
-          <a className="nav-link" href="#configuracao-esp"><Icon name="settings" /> Configuração ESP</a>
-          <a className="nav-link" href="#historico"><Icon name="chart" /> Histórico</a>
+          {visibleNavigationItems.map((item) => (
+            <a
+              key={item.id}
+              className={`nav-link${activeSection === item.id ? ' active' : ''}`}
+              href={`#${item.id}`}
+              aria-current={activeSection === item.id ? 'location' : undefined}
+              onClick={() => setActiveSection(item.id)}
+            >
+              <Icon name={item.icon} /> {item.label}
+            </a>
+          ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon"><Icon name="grapes" size={18} /></span><strong>Da vinha à adega,<br />cada detalhe importa.</strong><p>Leituras recebidas da API do Wineguard.</p><a href="#historico">Ver histórico <Icon name="arrow" size={14} /></a></div>
@@ -1124,40 +1238,50 @@ function App() {
       </aside>
 
       <main className="main-content" id="inicio" inert={Boolean(selectedVineyard)}>
-        <header className="topbar"><div className="breadcrumb">Wineguard <Icon name="chevron" size={14} /> <strong>Visão geral</strong></div><div className="top-actions"><span className={`live-status ${readingsError ? 'status-error' : readings ? 'status-connected' : ''}`}><i /> {readingsError ? 'Falha na atualização' : readings ? 'API de leituras' : 'Conectando à API'}</span><span className="authenticated-user">{user.username}</span><button className="logout-button" onClick={handleLogout} disabled={logoutBusy}>{logoutBusy ? 'Saindo…' : 'Sair'}</button></div></header>
+        <header className="topbar"><div className="breadcrumb">Wineguard <Icon name="chevron" size={14} /> <strong>{navigationItems.find((item) => item.id === activeSection)?.label || 'Visão geral'}</strong></div><div className="top-actions"><span className={`live-status ${readingsError ? 'status-error' : readings ? 'status-connected' : ''}`}><i /> {readingsError ? 'Falha na atualização' : readings ? 'API de leituras' : activeDevice ? 'Consultando leituras' : 'Sem dispositivo selecionado'}</span><span className="authenticated-user">{user.username}</span><button className="logout-button" onClick={handleLogout} disabled={logoutBusy}>{logoutBusy ? 'Saindo…' : 'Sair'}</button></div></header>
         <nav className="mobile-nav" aria-label="Navegação principal">
-          <a href="#inicio">Visão geral</a>
-          <a href="#mapa-vinicolas">Mapa</a>
-          <a href="#ambientes">Ambientes</a>
-          <a href="#dispositivos">Dispositivos</a>
-          <a href="#limites">Limites</a>
-          <a href="#configuracao-esp">ESP</a>
-          <a href="#historico">Histórico</a>
+          {visibleNavigationItems.map((item) => (
+            <a
+              key={item.id}
+              className={activeSection === item.id ? 'active' : undefined}
+              href={`#${item.id}`}
+              aria-current={activeSection === item.id ? 'location' : undefined}
+              onClick={() => setActiveSection(item.id)}
+            >
+              {item.mobileLabel || item.label}
+            </a>
+          ))}
         </nav>
         <div className="page-content">
           {sessionWarning && <div className="inline-warning" role="alert">{sessionWarning}</div>}
           {logoutError && <div className="inline-warning" role="alert"><span>{logoutError}</span>{logoutRetryAllowed && <button className="retry-button" onClick={handleLogout} disabled={logoutBusy}>Tentar novamente</button>}</div>}
-          <section className="welcome-row"><div><p className="date-label">{new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} <span className="welcome-separator">·</span> WINEGUARD</p><h1>Monitoramento da vinícola <span className="wave"><Icon name="grapes" size={21} /></span></h1><p className="page-subtitle">Leituras do sensor WineSensor002. A data e o horário são os recebidos pela API.</p></div><a className="primary-button" href="#dispositivos"><Icon name="plus" size={18} /> Gerenciar dispositivos</a></section>
+          <section className="welcome-row"><div><p className="date-label">{new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} <span className="welcome-separator">·</span> WINEGUARD</p><h1>Monitoramento da vinícola <span className="wave"><Icon name="grapes" size={21} /></span></h1><p className="page-subtitle">{activeDevice ? `Leituras de ${activeDevice.name}. A data e o horário são os recebidos pela API.` : 'Cadastre um dispositivo para acompanhar suas leituras.'}</p></div><a className="primary-button" href="#dispositivos"><Icon name="plus" size={18} /> Gerenciar dispositivos</a></section>
+
+          {devicesLoading && <RequestMessage loading label="dispositivos" />}
+          {!devicesLoading && devicesError && <RequestMessage error={devicesError} label="dispositivos" onRetry={retryDevices} />}
+          {!devicesLoading && !devicesError && !activeDevice && <section className="panel readings-state-panel"><p>Nenhum dispositivo cadastrado. As leituras aparecerão após cadastrar um sensor.</p></section>}
+          {activeDevice && <label className="device-limit-select">Dispositivo monitorado<select value={activeLimitDevice} onChange={selectDevice}>{devices.map((device) => <option key={device.id} value={device.id}>{device.name} · {device.fiwareId}</option>)}</select></label>}
 
           {readingsError && readings && <div className="inline-warning" role="alert"><span>Falha ao atualizar as leituras. Exibindo a última resposta recebida.</span><button className="retry-button" onClick={retryReadings}>Tentar novamente</button></div>}
-          <section className="stats-grid" aria-label="Leituras atuais">
+          {activeDevice && <section className="stats-grid" aria-label="Leituras atuais">
             {Object.entries(metrics).map(([key, config]) => (
               <article className="stat-card" key={key}><div className="stat-top"><span>{config.label}</span><span className={`metric-icon ${key === 'luminosity' ? 'light' : key}`}><Icon name={config.icon} /></span></div><div className={`stat-value ${readingsLoading && !readings ? 'value-loading' : ''}`}>{readings ? formatValue(currentValues[key]) : readingsLoading ? '…' : 'Indisponível'}{readings && currentValues[key] !== null && currentValues[key] !== undefined && <span>{config.unit || 'valor LDR'}</span>}</div><div className="stat-footer"><span>{readings ? 'Última leitura do sensor' : readingsError ? 'Falha na consulta' : 'Aguardando resposta'}</span></div></article>
             ))}
             <article className="stat-card"><div className="stat-top"><span>Última medição</span><span className="metric-icon devices"><Icon name="clock" /></span></div><div className="measurement-time">{readings ? formatTimestamp(readings.measuredAt) : 'Indisponível'}</div><div className="stat-footer"><span>Horário informado pela API</span></div></article>
-          </section>
+          </section>}
 
-          {!readings && <section className="panel readings-state-panel"><RequestMessage loading={readingsLoading} error={readingsError} label="leituras" onRetry={retryReadings} /><p>Sensor consultado: WineSensor002. A conexão depende da configuração do proxy /api.</p></section>}
+          {!readings && activeDevice && <section className="panel readings-state-panel"><RequestMessage loading={readingsLoading} error={readingsError} label="leituras" onRetry={retryReadings} /><p>Sensor consultado: {activeDevice.fiwareId}. Leituras protegidas pela API Java.</p></section>}
 
-          <div id="mapa-vinicolas"><VineyardMap onOpenDetails={openVineyardDetails} /></div>
+          <div id="mapa-vinicolas"><VineyardMap key={user.username} refreshKey={wineryMapRevision} onOpenDetails={openVineyardDetails} /></div>
 
           <section className="content-grid">
             <article className="panel chart-panel" id="historico">
-              <div className="panel-heading"><div><h2>Histórico de leituras</h2><p>Últimos 20 registros retornados pelo backend</p></div><button className="icon-button subtle" aria-label="Atualizar histórico" onClick={retryHistory} disabled={historyLoading} title="Consultar novamente"><Icon name="clock" size={17} /></button></div>
+              <div className="panel-heading"><div><h2>Histórico de leituras</h2><p>Até 20 registros nas últimas 24 horas, na ordem retornada pelo STH-Comet</p></div><button className="icon-button subtle" aria-label="Atualizar histórico" onClick={retryHistory} disabled={!activeDevice || historyLoading} title="Consultar novamente"><Icon name="clock" size={17} /></button></div>
+              {!activeDevice && <p>Nenhum dispositivo cadastrado para consultar o histórico.</p>}
               <div className="chart-controls">{Object.entries(metrics).map(([key, value]) => <button key={key} className={`metric-tab ${metric === key ? 'selected' : ''}`} style={metric === key ? { '--metric-color': value.color } : {}} onClick={() => setMetric(key)} aria-pressed={metric === key}><span className="metric-tab-dot" />{value.label}</button>)}</div>
-              <div className="chart-summary"><span className="chart-current">{formatValue(currentValues[metric])} <small>{metrics[metric].unit || 'valor LDR'}</small></span>{historyUpdatedAt && historyUpdatedMetric === metric && <span className="chart-change">Consulta ao backend {formatTimestamp(historyUpdatedAt.toISOString())}</span>}</div>
-              {historyLoading && !hasCurrentHistory && <RequestMessage loading label="histórico" />}
-              {historyError && <RequestMessage error={historyError} onRetry={retryHistory} label="histórico" />}
+              <div className="chart-summary"><span className="chart-current">{formatValue(currentValues[metric])} <small>{metrics[metric].unit || 'valor LDR'}</small></span>{hasCurrentHistory && historyUpdatedAt && historyUpdatedMetric === metric && <span className="chart-change">Consulta ao backend {formatTimestamp(historyUpdatedAt.toISOString())}</span>}</div>
+              {activeDevice && historyLoading && !hasCurrentHistory && <RequestMessage loading label="histórico" />}
+              {activeDevice && historyError && <RequestMessage error={historyError} onRetry={retryHistory} label="histórico" />}
               {!historyLoading && !historyError && hasCurrentHistory && history.length === 0 && <RequestMessage empty label="registros históricos" />}
               {hasCurrentHistory && history.length > 0 && <HistoryChart points={history} metric={metric} />}
               <div className="chart-foot"><span><i className="chart-legend-dot" style={{ background: metrics[metric].color }} /> {hasCurrentHistory ? `${history.length} registro(s)` : 'Aguardando registros'} · {metrics[metric].label}</span><span><Icon name="clock" size={14} /> receivedAt · {Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
@@ -1256,20 +1380,7 @@ function App() {
           <section className="panel management-panel" id="limites">
             <div className="panel-heading"><div><h2>Limites ambientais</h2><p>Configuração por dispositivo e métrica</p></div></div>
             <p className="management-notice">Este cadastro apenas persiste limites independentes por métrica no banco. Ele não configura o ESP, não aciona comandos e não avalia alertas automaticamente. Para enviar os cinco parâmetros ao dispositivo, use a configuração completa do ESP abaixo.</p>
-            {devices.length > 0 && <label className="device-limit-select">Dispositivo<select value={activeLimitDevice ?? ''} onChange={(event) => {
-              const nextDeviceId = Number(event.target.value)
-              cancelConfigurationTracking()
-              selectedConfigurationDeviceRef.current = nextDeviceId
-              setLimitsLoading(true)
-              setLimitsError('')
-              setConfigurationLoading(true)
-              setConfigurationError('')
-              setConfigurationSubmissionError('')
-              setConfigurationTimedOut(false)
-              setConfigurationNeedsVerification(false)
-              setDeviceConfiguration(null)
-              setSelectedLimitDevice(nextDeviceId)
-            }}>
+            {devices.length > 0 && <label className="device-limit-select">Dispositivo<select value={activeLimitDevice ?? ''} onChange={selectDevice}>
               {devices.map((device) => <option key={device.id} value={device.id}>{device.name} · {device.fiwareId} · {device.mqttDeviceId}</option>)}
             </select></label>}
             {limitSaveError && <p className="form-error" role="alert">{limitSaveError}</p>}
@@ -1308,11 +1419,13 @@ function App() {
             />
           </div>}
 
-          <section className="panel devices-panel" id="dispositivo-monitorado">
-            <div className="panel-heading devices-heading"><div><h2>Leituras do WineSensor002</h2><p>Telemetria consultada no serviço Express</p></div></div>
-            <div className="device-grid single-device-grid"><article className="device-card"><div className="device-card-top"><div className="device-avatar"><Icon name="devices" size={19} /></div><span className="device-id">WineSensor002</span></div><div className="device-title-row"><div><h3>Sensor WineSensor002</h3><p>Dispositivo retornado pelo backend</p></div></div><div className="device-readings"><span><Icon name="temperature" size={15} /> {formatValue(currentValues.temperature)} °C</span><span><Icon name="humidity" size={15} /> {formatValue(currentValues.humidity)} %</span><span><Icon name="sun" size={15} /> {formatValue(currentValues.luminosity)}</span></div><div className="device-card-bottom"><span className="battery">Luminosidade: escala LDR não calibrada</span></div></article></div>
-          </section>
-          <footer className="page-footer"><span><i /> Interface Wineguard</span><span>{readings ? `Data da leitura informada pela API: ${formatTimestamp(readings.measuredAt)}` : 'Aguardando dados do backend'} <b>·</b> Sensor: WineSensor002</span></footer>
+          {user.role === 'ADMIN' && <AdminUsersPanel key={user.username} csrf={csrf} onUserCreated={() => setWineryMapRevision((value) => value + 1)} />}
+
+          {activeDevice && <section className="panel devices-panel" id="dispositivo-monitorado">
+            <div className="panel-heading devices-heading"><div><h2>Leituras de {activeDevice?.name}</h2><p>Telemetria consultada na API Java autenticada</p></div></div>
+            <div className="device-grid single-device-grid"><article className="device-card"><div className="device-card-top"><div className="device-avatar"><Icon name="devices" size={19} /></div><span className="device-id">{activeDevice?.fiwareId}</span></div><div className="device-title-row"><div><h3>{activeDevice?.name}</h3><p>Dispositivo retornado pelo backend</p></div></div><div className="device-readings"><span><Icon name="temperature" size={15} /> {formatValue(currentValues.temperature)} °C</span><span><Icon name="humidity" size={15} /> {formatValue(currentValues.humidity)} %</span><span><Icon name="sun" size={15} /> {formatValue(currentValues.luminosity)}</span></div><div className="device-card-bottom"><span className="battery">Luminosidade: escala LDR não calibrada</span></div></article></div>
+          </section>}
+          <footer className="page-footer"><span><i /> Interface Wineguard</span><span>{readings ? `Data da leitura informada pela API: ${formatTimestamp(readings.measuredAt)}` : 'Aguardando dados do backend'} <b>·</b> Sensor: {activeDevice?.fiwareId ?? 'Nenhum'}</span></footer>
         </div>
       </main>
       <VineyardDetails property={selectedVineyard} onClose={closeVineyardDetails} />
