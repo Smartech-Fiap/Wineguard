@@ -1,142 +1,227 @@
 # WineGuard Backend — Vinharia Agnello
 
-API Java para cadastro de ambientes, dispositivos FIWARE e limites ambientais. O serviço consulta o Orion para a leitura atual e o STH-Comet para histórico; o PostgreSQL guarda somente os dados de configuração da aplicação.
+Backend Java do projeto acadêmico WineGuard. Gerencia ambientes, dispositivos, limites, usuários e configurações enviadas ao ESP. Integra o Orion, o STH-Comet e o IoT Agent UltraLight.
 
-## Acesso rápido
-
-- **Documentação visual da API:** [abrir diagrama, rotas e exemplos](docs/api-visual.md).
-- **Guia editável da equipe:** [backend, banco, execução, Postman e integração AWS/FIWARE](docs/guia-da-equipe.docx).
-- **Demonstração no Postman:** importe a [coleção com os 9 endpoints](docs/postman/WineGuard-API.postman_collection.json) e execute na ordem pelo Runner.
-- **Diagrama do fluxo:** [abrir fluxo-e-execucao.svg](docs/fluxo-e-execucao.svg).
-- **Banco de dados:** [modelo, tabelas e relacionamentos](docs/database.md).
-- **Execução local:** [passo a passo do IntelliJ, Docker e Beekeeper](docs/rodar-localmente.md).
+O PostgreSQL guarda os cadastros e o acompanhamento das configurações. As leituras atuais vêm do Orion; o histórico de medições permanece no STH-Comet.
 
 ## Arquitetura
 
 ```text
-Painel ──HTTP──> Spring Boot / API MVC ──> PostgreSQL
-                         │                   ├─ ambientes
-                         │                   ├─ dispositivos
-                         │                   └─ limites por dispositivo/variável
-                         ├──NGSIv2──> Orion (estado atual)
-                         └──STH API──> STH-Comet (histórico)
+Painel React ── HTTPS / Nginx
+                    ├─ /api/auth/* ────────── Java / Spring Security
+                    ├─ /api/environments* ─── Java
+                    ├─ /api/devices* ──────── Java
+                    └─ /api/sensors/* ─────── Node.js / Express
+
+Java ── PostgreSQL: cadastros, usuários, limites e configurações
+     ├─ Orion: estado atual e envio de comandos
+     ├─ STH-Comet: histórico de medições
+     └─ IoT Agent: provisionamento e remoção de dispositivos
+
+ESP32 ⇄ MQTT/TLS ⇄ Mosquitto ⇄ IoT Agent ⇄ Orion
 ```
 
-O projeto foi iniciado pelo [Spring Initializr](https://start.spring.io/) como Maven, Java 17, Spring Boot 4.0.9 e Spring MVC. Dependências: Spring Web MVC, Spring Data JPA, Validation, PostgreSQL Driver, Flyway, Actuator, Lombok e Spring Boot DevTools. Os arquivos estão separados por responsabilidade: `controller` recebe HTTP, `dto` define os contratos JSON, `service` aplica regras, `repository` acessa o PostgreSQL, `model` contém entidades JPA, `enums` define variáveis ambientais e `integration/fiware` conversa com Orion/STH. `config` guarda configuração, `common` trata erros e `resources/db/migration` contém migrações SQL.
+Java e Express coexistem. As rotas Express de leituras/histórico têm contratos próprios; não devem ser substituídas pelas rotas Java sem adaptar o painel.
 
-Lombok fornece getters, setters seletivos e construtores de injeção (`@Getter`, `@Setter` e `@RequiredArgsConstructor`). Evitamos `@Data` nas entidades JPA para não gerar `equals`/`toString` em relacionamentos e proxies. Spring Boot DevTools está como dependência opcional para reiniciar a aplicação no desenvolvimento; ele não deve ser ativado em produção.
+## Tecnologias
 
-## Dados e relações
+- Java 17, Maven Wrapper e Spring Boot 4.0.9.
+- Spring MVC, Security, Data JPA, Validation e Actuator.
+- PostgreSQL 16 e migrações Flyway.
+- Lombok e Spring Boot Starter Test.
+- Docker Compose para o PostgreSQL.
 
-- `environments`: ambientes de armazenamento (nome único e descrição opcional).
-- `devices`: nome, ID e tipo FIWARE, serviço, caminho FIWARE, estado ativo e ambiente obrigatório. O ID FIWARE é único dentro da combinação serviço/caminho.
-- `device_limits`: uma linha por dispositivo e variável; contém unidade, valor mínimo e/ou máximo. A base rejeita limites vazios ou mínimo maior que máximo.
+## Identificadores e unidades
 
-Cada dispositivo pertence a um ambiente (`devices.environment_id`). Cada limite pertence a um dispositivo (`device_limits.device_id`); as variáveis aceitas são `TEMPERATURE`, `HUMIDITY` e `LUMINOSITY`. Unidades vêm no registro do limite porque a equipe ainda precisa confirmar a convenção do sensor (por exemplo, °C, `%` e lux). Não foi escolhido nenhum valor de limite operacional.
+| Campo | Exemplo | Uso |
+|---|---|---|
+| `id` | `1` | Identificador numérico no PostgreSQL e nas rotas Java |
+| `fiwareId` | `WineSensor002` | ID da entidade Orion |
+| `fiwareType` | `WineSensor` | Tipo da entidade Orion |
+| `mqttDeviceId` | `wine002` | Identificador do dispositivo no IoT Agent/MQTT |
+| `fiwareService` | `vinheria` | Contexto FIWARE |
+| `fiwareServicePath` | `/` | Caminho do contexto FIWARE |
 
-O banco de aplicação **não replica leituras**: o Orion é consultado para o estado atual e o STH-Comet para séries históricas. A integração histórica usa a rota usual `STH/v1/contextEntities/...` com parâmetros `dateFrom` e `dateTo`; confirmem o path, atributo e autenticação do STH instalado pelo grupo antes de integrar ao painel.
-
-## Requisitos
-
-- JDK 17 ou superior.
-- Docker Desktop (para PostgreSQL local), ou PostgreSQL 16 compatível.
-- A primeira execução do Maven Wrapper precisa baixar o Maven e as dependências da internet.
+O firmware utiliza BME680 e LDR. Temperatura é expressa em °C; umidade, em %. Luminosidade é uma leitura ADC de 0 a 4095, não lux. Medição de fumaça não faz parte do escopo atual.
 
 ## Executar localmente
 
-1. Copie `.env.example` para `.env` e ajuste as URLs FIWARE ao ambiente acessível. O arquivo `.env` é ignorado pelo Git.
-2. Inicie o banco: `docker compose up -d postgres`.
-3. Inicie a API: `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`). Flyway cria o schema na primeira inicialização.
-4. Verifique `http://localhost:8080/actuator/health`.
+Requisitos: JDK 17, Docker com Compose e acesso à internet para baixar dependências na primeira execução.
 
-### Abrir e executar no IntelliJ IDEA
+1. Copie `.env.example` para `.env` e ajuste os valores. Não versione o `.env` real.
+2. Inicie o PostgreSQL:
 
-Abra a pasta do projeto no IntelliJ, importe o `pom.xml` como Maven e escolha JDK 17 em **File → Project Structure → Project SDK**. Habilite o plugin Lombok e **Settings → Build, Execution, Deployment → Compiler → Annotation Processors → Enable annotation processing**. Abra `src/main/java/br/com/vinhariaagnello/wineguard/WineguardBackendApplication.java` e use o triângulo verde ao lado do método `main` → **Run WineguardBackendApplication**. Não é necessário criar arquivo `.run`: a classe principal é o ponto de entrada do Spring Boot.
+```bash
+docker compose up -d postgres
+```
 
-Antes de executar a API, inicie o PostgreSQL pelo terminal integrado: `docker compose up -d postgres`. A aplicação usa os padrões locais de `application.yaml` e o Flyway cria as tabelas na inicialização. Se o IntelliJ ainda não mostrar o triângulo verde ou marcar `String`/imports como não resolvidos, sincronize o `pom.xml` no painel **Maven** e use **Repair IDE → Rescan Project Indexes**. A compilação Maven e a inicialização local foram confirmadas; enquanto o índice da IDE se atualiza, rode `spring-boot:run` no painel Maven (**Execute Maven Goal**) ou `./mvnw spring-boot:run` no terminal integrado. Para o DevTools perceber alterações, compile/recompile durante a execução (`Build → Build Project`).
+3. Carregue as variáveis no processo Java. O Docker Compose lê `.env`, mas Spring Boot não carrega esse arquivo automaticamente. Em Linux/Bash, com um arquivo local confiável e compatível com a sintaxe do shell:
 
-### Rodar sem a IDE
+```bash
+set -a
+. ./.env
+set +a
+./mvnw spring-boot:run
+```
 
-Com JDK 17, Docker e acesso à internet na primeira compilação, execute `docker compose up -d postgres` e depois `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`). A API fica em `http://localhost:8080`; a saúde está em `http://localhost:8080/actuator/health`. Não iniciamos serviço FIWARE local: configure `FIWARE_ORION_BASE_URL` e `FIWARE_STH_BASE_URL` com endereços alcançáveis a partir da máquina onde roda a API. O cadastro e limites continuam disponíveis sem FIWARE, mas leituras atuais/históricas exigem essas VMs e o contrato de rede confirmado com a equipe.
+No Windows/IntelliJ, configure as mesmas variáveis no ambiente de execução. Use `mvnw.cmd` no lugar de `./mvnw`.
 
-O schema é criado por `src/main/resources/db/migration/V1__create_application_schema.sql`. A migração não insere dispositivos automaticamente. Para dados locais fictícios, execute manualmente `src/main/resources/db/seed/demo-data.sql` depois que o banco estiver iniciado. Nunca rode esse seed como parte da implantação de produção.
+4. Consulte `http://127.0.0.1:8080/actuator/health`.
 
-No Beekeeper, o contador de entidades inclui tabelas internas do PostgreSQL, como `pg_catalog` e `information_schema`. O schema `public` desta aplicação tem três tabelas de negócio (`environments`, `devices` e `device_limits`) e uma tabela técnica do Flyway (`flyway_schema_history`). Veja a consulta para filtrar o schema da aplicação em [docs/database.md](docs/database.md).
+Flyway aplica as migrações na inicialização. O usuário PostgreSQL não é um usuário de login da API: os usuários da aplicação ficam em `app_users`. A ferramenta administrativa [tools/CreateAppUser.java](tools/CreateAppUser.java) cria usuários; confira suas instruções e requisitos antes da execução. Não existe cadastro público de usuários.
+
+O padrão do cookie de sessão é `Secure=true`. Para testes exclusivamente locais por HTTP, configure `SESSION_COOKIE_SECURE=false` no ambiente local; em produção HTTPS mantenha `true`. Não desabilite CSRF.
+
+O Compose publica o PostgreSQL apenas em `127.0.0.1:5432`, usa volume persistente e política `restart: unless-stopped`. Não remova o volume para atualizar a aplicação. Alterar a senha no `.env` não muda automaticamente a senha de um banco já inicializado.
 
 ## Variáveis de ambiente
 
-| Variável | Uso | Exemplo local |
+| Variável | Finalidade |
+|---|---|
+| `SPRING_DATASOURCE_URL` | URL JDBC do PostgreSQL |
+| `SPRING_DATASOURCE_USERNAME` | Usuário do PostgreSQL |
+| `SPRING_DATASOURCE_PASSWORD` | Senha do PostgreSQL; o exemplo é somente para desenvolvimento |
+| `SERVER_PORT` | Porta Java; padrão `8080` |
+| `SERVER_ADDRESS` | Endereço de escuta; padrão `127.0.0.1` |
+| `SESSION_COOKIE_SECURE` | Cookie somente por conexão segura; padrão `true` |
+| `FIWARE_ORION_BASE_URL` | URL do Orion |
+| `FIWARE_STH_BASE_URL` | URL do STH-Comet |
+| `FIWARE_IOTA_BASE_URL` | URL administrativa do IoT Agent |
+| `FIWARE_IOTA_API_KEY` | Chave do grupo de dispositivos no IoT Agent |
+| `FIWARE_SERVICE` | Contexto FIWARE configurado; padrão `vinheria` |
+| `FIWARE_SERVICE_PATH` | Caminho FIWARE configurado; padrão `/` |
+| `FIWARE_CONFIGURATION_ENABLED` | Habilita o envio de limites ao ESP; padrão `false` |
+
+Configure endereços alcançáveis a partir da máquina que executa o Java. Em produção, mantenha banco e portas administrativas FIWARE restritos à rede necessária. Não coloque senhas, tokens, arquivos de cookies ou chaves privadas no Git ou no frontend.
+
+## Autenticação
+
+A API Java implementa autenticação por sessão com Spring Security e usuários persistidos no PostgreSQL. As senhas são armazenadas como hashes; a ferramenta administrativa usa BCrypt.
+
+Fluxo para o painel ou cliente HTTP:
+
+1. `GET /api/auth/csrf`: guardar o cookie e o token retornados.
+2. `POST /api/auth/login`: enviar `username` e `password` como `application/x-www-form-urlencoded`, com o cookie e o cabeçalho CSRF informado pela API.
+3. Após o login, guardar o cookie atualizado e buscar um novo token CSRF.
+4. Enviar o cookie nas rotas protegidas. POST, PUT e DELETE também exigem CSRF.
+5. `POST /api/auth/logout`: encerrar a sessão com o token atual.
+
+O cookie é `HttpOnly`, `SameSite=Lax` e, por padrão, `Secure`. A sessão tem timeout de 30 minutos de inatividade e é encerrada ao reiniciar o backend. Essa implementação não persiste sessões no PostgreSQL.
+
+As rotas funcionais Java exigem autenticação. A saúde básica em `/actuator/health` e a obtenção de CSRF são públicas. Não há diferenciação de permissões por usuário nesta versão; os usuários habilitados compartilham o mesmo nível de acesso.
+
+## Rotas Java
+
+| Método | Rota | Finalidade |
 |---|---|---|
-| `SPRING_DATASOURCE_URL` | JDBC do PostgreSQL | `jdbc:postgresql://localhost:5432/wineguard` |
-| `SPRING_DATASOURCE_USERNAME` | usuário da aplicação | `wineguard` |
-| `SPRING_DATASOURCE_PASSWORD` | senha local/de execução | `wineguard-local` |
-| `SERVER_PORT` | porta HTTP da API | `8080` |
-| `FIWARE_ORION_BASE_URL` | base URL do Orion | `http://localhost:1026` |
-| `FIWARE_SERVICE` | service padrão documentado pela equipe | `vinheria` |
-| `FIWARE_SERVICE_PATH` | service path padrão documentado pela equipe | `/` |
-| `FIWARE_STH_BASE_URL` | base URL do STH-Comet | `http://localhost:8666` |
+| GET | `/api/auth/csrf` | Obter token CSRF |
+| POST | `/api/auth/login` | Autenticar |
+| GET | `/api/auth/me` | Consultar usuário da sessão |
+| POST | `/api/auth/logout` | Encerrar sessão |
+| GET / POST | `/api/environments` | Listar / criar ambientes |
+| GET / POST | `/api/devices` | Listar / cadastrar dispositivos |
+| DELETE | `/api/devices/{id}` | Remover dispositivo do IoT Agent, Orion e cadastro local |
+| POST | `/api/devices/{id}/provision` | Provisionar o cadastro no IoT Agent |
+| GET / PUT | `/api/devices/{id}/limits` | Consultar / persistir limites por métrica |
+| GET | `/api/devices/{id}/readings/current` | Consultar estado atual no Orion |
+| GET | `/api/devices/{id}/readings/history/{metric}` | Consultar histórico no STH-Comet |
+| POST | `/api/devices/{id}/commands/alert` | Enviar comando manual de alerta |
+| POST | `/api/devices/{id}/configuration` | Registrar e enviar configuração completa ao ESP |
+| GET | `/api/devices/{id}/configuration` | Consultar e reconciliar a configuração mais recente |
 
-O cadastro de dispositivo guarda serviço e service path individualmente. Para o exemplo da imagem, use `vinheria` e `/` somente após confirmar no Orion que esse contexto está correto.
-
-## API inicial
-
-- `GET /api/environments` e `POST /api/environments`
-- `GET /api/devices` e `POST /api/devices`
-- `GET /api/devices/{id}/limits` e `PUT /api/devices/{id}/limits`
-- `GET /api/devices/{id}/readings/current` (Orion)
-- `GET /api/devices/{id}/readings/history/{metric}?dateFrom=...&dateTo=...` (STH-Comet)
-
-Consulte a documentação visual em [`docs/api-visual.md`](docs/api-visual.md) e importe a coleção local [`docs/postman/WineGuard-API.postman_collection.json`](docs/postman/WineGuard-API.postman_collection.json) no Postman. A coleção usa valores fictícios e cobre cadastro, limites e leituras FIWARE.
-
-Para mapear cada requisito de revisão aos arquivos, resultados do Postman e pendências de integração, consulte [`docs/pacote-para-equipe.md`](docs/pacote-para-equipe.md).
-
-## Evidência de verificação manual
-
-Em 27/10/2026, na execução local com PostgreSQL 16, os endpoints de saúde (`200`), listagem (`200`), criação de ambiente/dispositivo (`201`) e gravação/consulta de limite (`200`) foram verificados no Postman. O teste inicialmente identificou e levou à correção da consulta JPA de limites. As duas rotas de leitura FIWARE retornaram `502` porque Orion e STH-Comet não estavam acessíveis neste ambiente; são dependências externas que precisam estar ligadas para validar payloads reais.
-
-A coleção completa também foi executada pelo Runner do Postman: os 9 endpoints rodaram em sequência, com 16 verificações aprovadas e zero erros. Os endpoints de cadastro e limites responderam com sucesso; as duas verificações de leitura aceitaram `502` como resposta controlada para FIWARE indisponível. Isso confirma o tratamento de erro do backend, mas não valida dados reais vindos das VMs.
-
-Os testes de criação deixaram registros fictícios `Postman QA WineGuard` (ambiente) e `Device Postman QA` (dispositivo) no banco local. Os valores não representam dispositivos reais.
-
-Exemplo de payload para cadastrar o dispositivo de referência informado na imagem (ajuste `environmentId` para um ambiente existente):
+Exemplo de cadastro, usando um ambiente já existente:
 
 ```json
 {
   "name": "WineGuard 002",
-  "fiwareId": "wine002",
-  "fiwareType": "WineSensor002",
+  "fiwareId": "WineSensor002",
+  "mqttDeviceId": "wine002",
+  "fiwareType": "WineSensor",
   "fiwareService": "vinheria",
   "fiwareServicePath": "/",
   "environmentId": 1
 }
 ```
 
-Exemplo de limite **ilustrativo**: não use os números como limites reais da adega.
+Cadastro no PostgreSQL e provisionamento no IoT Agent são etapas distintas. O provisionamento responde `201`, mas não cria usuário, senha ou ACL no broker MQTT. O cadastro rejeita duplicidades FIWARE e MQTT no mesmo contexto.
+
+A remoção responde `204`, sem JSON. Ela verifica o vínculo no IoT Agent, remove os registros externos e depois o cadastro local. Os limites e registros de configuração associados são removidos por cascata no PostgreSQL; o histórico STH não é apagado. Credenciais e ACLs MQTT não são revogadas automaticamente.
+
+As operações envolvendo FIWARE e PostgreSQL não têm transação distribuída. Falhas podem deixar operações parcialmente concluídas; não presuma reversão automática nem repita chamadas de escrita indiscriminadamente.
+
+## Leituras e histórico
+
+O Java retorna a leitura Orion no formato `keyValues`. O histórico usa `dateFrom` e `dateTo` obrigatórios, com início anterior ao fim, e métrica `TEMPERATURE`, `HUMIDITY` ou `LUMINOSITY`.
+
+A consulta STH atual fixa `hLimit=20` e `hOffset=0`: retorna a primeira página do intervalo, não garante os vinte pontos mais recentes nem a série inteira. Não há paginação exposta nessa rota.
+
+As rotas Express mantidas para o dashboard são:
+
+- `GET /api/sensors/WineSensor002/readings`
+- `GET /api/sensors/WineSensor002/history?attribute=temperature&limit=20`
+
+Essas rotas Express de leitura continuam públicas na implantação atual. A proteção da API Java não se aplica automaticamente a elas. O frontend usa a mesma origem HTTPS pública e não acessa diretamente MQTT, Orion ou STH.
+
+## Alertas e configuração do ESP
+
+O comando manual usa `POST /api/devices/{id}/commands/alert`:
 
 ```json
-{
-  "metric": "TEMPERATURE",
-  "minimumValue": 10.000,
-  "maximumValue": 18.000,
-  "unit": "°C"
-}
+{"command":"temperature"}
 ```
 
-## Segurança e produção
+Valores aceitos: `normal`, `temperature`, `humidity` e `luminosity`. A resposta `202` indica aceitação do envio, não comprova acionamento físico. No firmware, `normal` encerra somente alertas remotos; alertas locais persistem enquanto sua condição continuar ativa.
 
-Esta entrega não implementa autenticação/autorização de usuários porque o requisito e o provedor de identidade do projeto ainda não foram definidos. Mantenha a API em rede privada ou atrás da autenticação já usada pelo painel; não a exponha publicamente até integrar controle de acesso. Credenciais reais devem ficar fora do `.env.example` e do Git, em segredo de ambiente/AWS Secrets Manager.
+`PUT /limits` apenas persiste limites por métrica. Para alterar os limites locais do ESP, envie uma configuração completa para `POST /configuration`. O backend gera a revisão e acompanha `PENDING`, `APPLIED`, `REJECTED` ou `UNCONFIRMED`.
 
-## Itens para alinhar com a equipe antes da integração final
+Uma configuração só passa para `APPLIED` após a telemetria corresponder à revisão e aos cinco valores registrados. A reconciliação e a verificação do prazo de 30 segundos ocorrem na consulta GET; não há tarefa periódica nesta versão.
 
-1. URLs e autenticação reais do Orion e do STH-Comet; confirmar versão NGSI, atributos exatos e `Fiware-Service`/`Fiware-ServicePath`.
-2. Confirmar unidades e se limites pertencem a cada sensor (modelo atual) ou ao ambiente.
-3. Definir autenticação, perfis de usuário e permissões do painel.
-4. Confirmar conexão de rede entre os serviços atuais e o backend Java. Não migrar o Node/EC2 até combinar contrato e janela de transição.
+Resultados indefinidos bloqueiam novos envios. Não há reenvio automático nem endpoint de reenvio da mesma revisão. Consulte o estado após falha de rede, timeout ou `502`, pois a operação pode ter sido parcialmente executada.
 
-## Diagrama de fluxo e guia de execução
+O firmware utiliza limites padrão na primeira inicialização, histerese local e armazenamento NVS das configurações. A persistência após reinício ainda precisa de validação física nesta rodada de integração. Os valores usados nos testes são de bancada, não limites operacionais aprovados para vinhos.
 
-Veja o diagrama [fluxo-e-execucao.svg](docs/fluxo-e-execucao.svg) e o guia [rodar-localmente.md](docs/rodar-localmente.md) para o fluxo entre painel, API, PostgreSQL, Orion, STH-Comet, dispositivos e Beekeeper Studio.
+Consulte o contrato completo, os tópicos MQTT e as limitações em [docs/configuracao-do-esp.md](docs/configuracao-do-esp.md).
 
-## Implantação AWS
+## Persistência e migrações
 
-Ver [docs/aws-deployment.md](docs/aws-deployment.md) para a implantação sugerida e suas dependências de rede.
+- V1: ambientes, dispositivos e limites por métrica.
+- V2: usuários da aplicação.
+- V3: identificador MQTT dos dispositivos.
+- V4: configurações completas, revisões e estados de confirmação.
+
+Tabelas da aplicação: `environments`, `devices`, `device_limits`, `app_users` e `device_configurations`. Flyway mantém também `flyway_schema_history`.
+
+Não altere migrações já aplicadas. Mudanças posteriores no schema devem receber uma nova versão. Dados de demonstração não devem ser inseridos automaticamente no ambiente implantado.
+
+## Testes e evidências
+
+```bash
+./mvnw test
+./mvnw clean package
+```
+
+No Windows, use `mvnw.cmd`. A suíte atual tem 18 testes unitários, sem dependência de banco, FIWARE ou ESP:
+
+- `EspConfigurationReportTest`: interpretação da configuração ativa.
+- `EspConfigurationResultTest`: interpretação de confirmações e rejeições.
+
+Validações manuais realizadas na integração:
+
+- Saúde, cadastros, limites e leituras reais Orion/STH.
+- Login, CSRF, acesso sem sessão e logout por HTTPS.
+- Provisionamento e remoção de um dispositivo temporário.
+- Rejeição de revisão inválida pelo ESP e chegada da resposta ao Orion.
+- Aplicação da revisão 1 e reconciliação da API para `APPLIED`.
+- Repetição da mesma revisão retornando `already_applied`.
+- POST da revisão 2 retornando `202`; ausência de confirmação com ESP desconectado resultando em `UNCONFIRMED`.
+- Correção e teste do envio HTTP do Spring com Content-Length, exigido pelo Orion instalado.
+
+Os testes unitários não substituem os testes físicos. Ficam pendentes a conclusão do fluxo da revisão 2, a persistência após reinício do ESP e a integração da versão atualizada do dashboard. O acionamento físico pelo novo endpoint Java de alerta também precisa de validação conjunta.
+
+## Implantação e documentação
+
+Os modelos de Nginx, systemd e renovação de certificados estão em [deploy/README.md](deploy/README.md). O Java e o PostgreSQL permanecem em loopback, atrás do Nginx HTTPS. Os serviços dependem da disponibilidade das instâncias do laboratório AWS.
+
+O repositório representa o componente Java e será reunido aos demais componentes pela equipe. Não se presume publicação automática dos commits locais na branch remota.
+
+Documentos anteriores, como a coleção Postman de nove endpoints, o guia da equipe, o diagrama e as páginas iniciais de API/banco/execução, podem descrever o contrato antigo. Precisam ser revisados para incluir autenticação, mqttDeviceId e as novas rotas; não devem ser usados como evidência de cobertura completa da versão atual.
