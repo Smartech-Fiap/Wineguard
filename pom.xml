@@ -18,6 +18,11 @@
 		<lombok.version>1.18.48</lombok.version>
 	</properties>
 	<dependencies>
+                <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-test</artifactId>
+                        <scope>test</scope>
+                </dependency>
 		<dependency>
     			<groupId>org.springframework.boot</groupId>
     			<artifactId>spring-boot-starter-security</artifactId>
