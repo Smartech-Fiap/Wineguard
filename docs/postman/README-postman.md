@@ -1,6 +1,6 @@
 # Coleção Postman do WineGuard
 
-Esta coleção descreve o backend Java atual: sessão/CSRF, cadastros, leituras, provisionamento, remoção, comandos e configurações do ESP. Contém 19 requisições em oito pastas. As operações de escrita ficam ignoradas por padrão, exceto login e logout.
+Esta coleção descreve o backend Java atual: sessão/CSRF, cadastros, leituras, provisionamento, remoção, comandos e configurações do ESP. Contém 20 requisições em oito pastas. As operações de escrita ficam ignoradas por padrão, exceto login e logout.
 
 ## Preparação
 
@@ -80,7 +80,7 @@ O POST gera uma nova revisão e responde 202/PENDING. Consulte depois a requisi�
 
 Não há polling nesta coleção. Faça consultas GET após o envio; a passagem para UNCONFIRMED é calculada na consulta após 30 segundos. Uma confirmação tardia ainda pode concluir o registro.
 
-Após timeout, erro de rede ou 502, não repita automaticamente o POST. Consulte a configuração: o registro pode ter sido criado e o comando enviado. Enquanto houver PENDING/UNCONFIRMED, novos envios são bloqueados. O backend agora oferece `POST /api/devices/{id}/configuration/{revision}/retry`. Esta versão da coleção ainda não inclui essa requisição. Preservar o registro faz parte da recuperação operacional.
+Após timeout, erro de rede ou 502, não repita automaticamente o POST. Consulte a configuração: o registro pode ter sido criado e o comando enviado. Enquanto houver PENDING/UNCONFIRMED, novos envios são bloqueados. O backend agora oferece `POST /api/devices/{id}/configuration/{revision}/retry`. A pasta 06 inclui essa requisição como operação individual, desabilitada por padrão. Preservar o registro faz parte da recuperação operacional.
 
 HTTP 503 indica envio desabilitado no ambiente Java. Não altere o flag de execução do backend apenas para fazer o teste passar.
 
@@ -99,3 +99,33 @@ Execute **08 - Encerrar sessão** ao concluir. Ela faz logout e verifica que `/a
 Não publique credenciais, cookies, tokens ou exportações preenchidas nos relatórios. Prefira um resumo dos resultados e respostas sem dados de sessão.
 
 Validação desta entrega: JSON analisado, sintaxe dos scripts conferida e controles pré-request exercitados em simulação local. A coleção ainda precisa ser importada e executada no Postman contra a API real. Isso não é uma declaração de que os endpoints ou atuadores foram testados por esta coleção.
+
+## Reenvio da mesma revisão
+
+Na pasta 06, selecione somente “Reenviar a mesma revisão sem confirmação”.
+
+Antes, consulte a configuração mais recente e confira dispositivo,
+revisão e estado. Não use o POST de nova configuração para recuperar
+um envio anterior.
+
+Na cópia local do ambiente:
+- Informe deviceId com o ID numérico do dispositivo.
+- Informe retryRevision com a revisão existente.
+- Habilite allowConfigurationRetry=true somente para essa operação.
+
+A requisição não recebe corpo. O pré-script busca CSRF atual e envia
+a sessão pelo cookie jar.
+
+- HTTP 200: revisão já aplicada; nenhum comando foi enviado.
+- HTTP 202: mesma revisão reenviada; aplicação ainda não confirmada.
+- HTTP 409: conflito, prazo de espera ou tentativa em andamento.
+- HTTP 502: resultado não confirmado; consulte antes de repetir.
+- HTTP 503: envio desabilitado no backend.
+
+Após 202, use o GET de configuração da pasta 02 para acompanhar.
+Não há polling nem reenvio automático nesta coleção.
+Ao concluir, volte allowConfigurationRetry para false.
+
+A execução desta nova requisição no Postman contra a API real ainda
+está pendente. Não a considere validada fisicamente apenas porque
+o JSON foi conferido ou o envio recebeu 202.

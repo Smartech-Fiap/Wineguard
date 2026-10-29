@@ -87,6 +87,16 @@
       "key": "dateTo",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "allowConfigurationRetry",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "retryRevision",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -1000,6 +1010,103 @@
                 "exec": [
                   "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
                   "if(pm.response.code===202) { const d=pm.response.json(); pm.test(\"Envio registrado, ainda não confirmado\",function(){pm.expect(d.status).to.eql(\"PENDING\"); pm.expect(d.confirmedAt).to.eql(null); pm.expect(d.revision).to.be.above(0);}); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reenviar a mesma revisão sem confirmação",
+          "request": {
+            "method": "POST",
+            "description": "Execução individual com allowConfigurationRetry=true. Informe deviceId e retryRevision após consultar o estado. Não recebe corpo nem cria nova revisão. 200 significa já aplicada, sem envio; 202 significa reenviada, aguardando confirmação. Não repetir automaticamente após erro.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration/{{retryRevision}}/retry"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowConfigurationRetry\")) !== \"true\") skip(\"Ignorada: habilite allowConfigurationRetry somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "",
+                  "const revision = String(pm.variables.get(\"retryRevision\") || \"\");",
+                  "if (permitted && (",
+                  "    !/^[1-9][0-9]{0,9}$/.test(revision) ||",
+                  "    Number(revision) > 4294967295",
+                  ")) {",
+                  "    skip(\"Reenvio ignorado: configure retryRevision com uma revisão válida.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200 ou 202\", function () {",
+                  "    pm.expect([200, 202]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200 || pm.response.code === 202) {",
+                  "    const data = pm.response.json();",
+                  "",
+                  "    pm.test(\"Preserva dispositivo e revisão escolhidos\", function () {",
+                  "        pm.expect(String(data.deviceId))",
+                  "            .to.eql(String(pm.variables.get(\"deviceId\")));",
+                  "        pm.expect(String(data.revision))",
+                  "            .to.eql(String(pm.variables.get(\"retryRevision\")));",
+                  "    });",
+                  "",
+                  "    if (pm.response.code === 200) {",
+                  "        pm.test(\"Já aplicada, sem novo envio\", function () {",
+                  "            pm.expect(data.status).to.eql(\"APPLIED\");",
+                  "            pm.expect(data.confirmedAt).to.be.a(\"string\");",
+                  "        });",
+                  "    } else {",
+                  "        pm.test(\"Reenvio aceito, ainda sem confirmação\", function () {",
+                  "            pm.expect(data.status).to.eql(\"PENDING\");",
+                  "            pm.expect(data.confirmedAt).to.eql(null);",
+                  "        });",
+                  "    }",
+                  "}"
                 ]
               }
             }
