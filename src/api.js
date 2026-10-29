@@ -672,10 +672,11 @@ export async function retryAndWatchDeviceConfiguration(deviceId, revision, csrf,
         error.message.startsWith('Não foi possível conectar ao backend.')
       if (!outcomeNeedsReconciliation || signal?.aborted) throw error
       try {
-        onUpdate?.(await getDeviceConfiguration(deviceId, { signal }))
+        const reconciled = await getDeviceConfiguration(deviceId, { signal })
+        onUpdate?.(reconciled)
       } catch (verificationError) {
         if (verificationError.name === 'AbortError') throw verificationError
-        throw new Error(`${error.message} A consulta de estado também falhou: ${verificationError.message}`, { cause: error })
+        throw new Error(`${error.message} A consulta de estado também falhou: ${verificationError.message}`, { cause: verificationError })
       }
       throw error
     }
