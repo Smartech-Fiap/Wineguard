@@ -134,3 +134,16 @@ location /api/devices {
 ```
 
 Mantenha painel e APIs na mesma origem HTTPS pública para que o cookie de sessão funcione com `credentials: same-origin`. Configure endereços de serviço no ambiente de publicação; não versione hostnames privados, credenciais, tokens ou valores `VITE_*` de produção.
+
+
+## Publicação na Vercel
+
+No repositório final, o dashboard fica em `frontend/`. Ao importar o repositório na Vercel, selecione essa pasta como **Root Directory**, com framework Vite. O arquivo `vercel.json` define instalação por `npm ci`, build por `npm run build` e saída `dist`.
+
+O proxy de desenvolvimento do Vite não faz parte dos arquivos publicados. Na Vercel, a regra externa de `vercel.json` encaminha `/api/*` para `https://184.192.182.39/api/*`, mantendo os caminhos. Esse IP é o endereço público da API, não uma credencial. Ajuste o destino se a infraestrutura mudar. Não é necessário configurar `VITE_API_JAVA_TARGET` para esse encaminhamento na Vercel.
+
+O navegador deve continuar chamando apenas `/api/...` na origem do painel. Não substitua essas chamadas por URLs diretas da AWS nem desative CSRF. As respostas de API recebem a instrução `Cache-Control: private, no-store`. O cookie de sessão depende do encaminhamento correto de Cookie e Set-Cookie; o backend deve continuar emitindo o cookie sem Domain, com Secure, HttpOnly e SameSite=Lax.
+
+Antes de considerar a publicação validada, testar no endereço HTTPS da Vercel: obter CSRF, login ADMIN e USER, recarga mantendo sessão, administração restrita, mapa, isolamento de sensores, uma escrita autorizada com CSRF e logout seguido de 401. O build local não comprova esse fluxo no proxy da Vercel.
+
+A API ainda depende das instâncias AWS ativas e de certificado HTTPS válido. A publicação estática do frontend não mantém o laboratório ligado. Não publique `.env.local`, arquivos de cookies, credenciais ou a pasta `.vercel`.
