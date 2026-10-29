@@ -1185,6 +1185,293 @@
       ]
     },
     {
+      "name": "07B - Usuários e mapa",
+      "description": "Consultas autenticadas. ADMIN lista contas; USER recebe 403. Ambos consultam o mapa sem dados dos sensores.",
+      "item": [
+        {
+          "name": "Listar usuários conforme o perfil",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.unset(\"checkedUserRole\");",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/me\"),",
+                  "  method: \"GET\",",
+                  "  header: {Accept: \"application/json\"}",
+                  "}, function(error, response) {",
+                  "  let role;",
+                  "  try {",
+                  "    if (error || !response || response.code !== 200) throw new Error();",
+                  "    role = response.json().role;",
+                  "    if (![\"ADMIN\", \"USER\"].includes(role)) throw new Error();",
+                  "    pm.variables.set(\"checkedUserRole\", role);",
+                  "  } catch (_) {",
+                  "    pm.test(\"Sessão válida antes da consulta administrativa\", function() {",
+                  "      throw new Error(\"Autentique-se antes de executar esta requisição.\");",
+                  "    });",
+                  "    pm.execution.skipRequest();",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const role = pm.variables.get(\"checkedUserRole\");",
+                  "pm.test(\"Permissão administrativa conforme o perfil\", function() {",
+                  "  pm.expect([\"ADMIN\", \"USER\"]).to.include(role);",
+                  "  pm.response.to.have.status(role === \"ADMIN\" ? 200 : 403);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Contas sem senha ou hash\", function() {",
+                  "    const accounts = pm.response.json();",
+                  "    pm.expect(accounts).to.be.an(\"array\");",
+                  "    accounts.forEach(function(account) {",
+                  "      pm.expect(account).to.have.property(\"username\");",
+                  "      pm.expect([\"ADMIN\", \"USER\"]).to.include(account.role);",
+                  "      pm.expect(account).not.to.have.property(\"password\");",
+                  "      pm.expect(account).not.to.have.property(\"passwordHash\");",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar mapa compartilhado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/wineries"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mapa acessível com sessão\", function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Somente campos de localização\", function() {",
+                  "    const points = pm.response.json();",
+                  "    pm.expect(points).to.be.an(\"array\");",
+                  "    points.forEach(function(point) {",
+                  "      pm.expect(point).to.have.all.keys(",
+                  "        \"id\", \"wineryName\", \"city\", \"region\", \"country\",",
+                  "        \"latitude\", \"longitude\"",
+                  "      );",
+                  "      pm.expect(point.id).to.be.a(\"number\").above(0);",
+                  "      [\"wineryName\", \"city\", \"region\", \"country\"].forEach(function(key) {",
+                  "        pm.expect(point[key]).to.be.a(\"string\");",
+                  "        pm.expect(point[key].trim()).not.to.equal(\"\");",
+                  "      });",
+                  "      pm.expect(point.latitude).to.be.a(\"number\").within(-90, 90);",
+                  "      pm.expect(point.longitude).to.be.a(\"number\").within(-180, 180);",
+                  "    });",
+                  "  });",
+                  "  pm.test(\"Localizações sem cache\", function() {",
+                  "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar usuário com localização (execução individual)",
+          "request": {
+            "method": "POST",
+            "description": "Somente ADMIN. Cria uma conta USER real no banco. Exige allowUserCreation=true e todas as variáveis newUser*. Não repetir automaticamente após erro ou timeout; consultar a lista.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowUserCreation\")) !== \"true\") skip(\"Ignorada: habilite allowUserCreation somente para a operação escolhida.\");",
+                  "",
+                  "if (permitted) {",
+                  "}",
+                  "",
+                  "pm.variables.unset(\"createdUserId\");",
+                  "const input = {};",
+                  "const fields = {",
+                  "  username: \"newUserUsername\",",
+                  "  password: \"newUserPassword\",",
+                  "  wineryName: \"newUserWineryName\",",
+                  "  city: \"newUserCity\",",
+                  "  region: \"newUserRegion\",",
+                  "  country: \"newUserCountry\",",
+                  "  latitude: \"newUserLatitude\",",
+                  "  longitude: \"newUserLongitude\"",
+                  "};",
+                  "for (const [key, variable] of Object.entries(fields)) {",
+                  "  const value = pm.variables.get(variable);",
+                  "  if (value === undefined || value === null || !String(value).trim()) {",
+                  "    skip(\"Ignorada: preencha \" + variable + \" no ambiente local.\");",
+                  "  } else {",
+                  "    input[key] = String(value);",
+                  "  }",
+                  "}",
+                  "if (permitted) {",
+                  "  input.username = input.username.trim();",
+                  "  if (!/^[A-Za-z0-9._-]{3,100}$/.test(input.username)) {",
+                  "    skip(\"Ignorada: nome de usuário inválido.\");",
+                  "  }",
+                  "  const bytes = Array.from(input.password).reduce(function(total, char) {",
+                  "    const code = char.codePointAt(0);",
+                  "    return total + (code <= 127 ? 1 : code <= 2047 ? 2 : code <= 65535 ? 3 : 4);",
+                  "  }, 0);",
+                  "  if (input.password.length < 12 || bytes > 72) {",
+                  "    skip(\"Ignorada: senha deve ter pelo menos 12 caracteres e até 72 bytes.\");",
+                  "  }",
+                  "  for (const key of [\"wineryName\", \"city\", \"region\", \"country\"]) {",
+                  "    input[key] = input[key].trim();",
+                  "    if (input[key].length > (key === \"wineryName\" ? 150 : 100)) {",
+                  "      skip(\"Ignorada: campo de localização acima do limite.\");",
+                  "    }",
+                  "  }",
+                  "  for (const key of [\"latitude\", \"longitude\"]) {",
+                  "    const value = Number(input[key]);",
+                  "    const maximum = key === \"latitude\" ? 90 : 180;",
+                  "    if (!Number.isFinite(value) || Math.abs(value) > maximum ||",
+                  "        Number(value.toFixed(6)) !== value) {",
+                  "      skip(\"Ignorada: coordenadas inválidas ou com mais de seis casas decimais.\");",
+                  "    }",
+                  "    input[key] = value;",
+                  "  }",
+                  "}",
+                  "if (permitted) {",
+                  "  pm.request.body.update(JSON.stringify({",
+                  "    username: input.username,",
+                  "    password: input.password,",
+                  "    location: {",
+                  "      wineryName: input.wineryName,",
+                  "      city: input.city,",
+                  "      region: input.region,",
+                  "      country: input.country,",
+                  "      latitude: input.latitude,",
+                  "      longitude: input.longitude",
+                  "    }",
+                  "  }));",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Conta criada com HTTP 201\", function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const account = pm.response.json();",
+                  "  pm.test(\"Conta USER sem senha ou hash na resposta\", function() {",
+                  "    pm.expect(account.role).to.equal(\"USER\");",
+                  "    pm.expect(account.enabled).to.equal(true);",
+                  "    pm.expect(account.username).to.equal(",
+                  "      String(pm.variables.get(\"newUserUsername\")).trim()",
+                  "    );",
+                  "    pm.expect(account).not.to.have.property(\"password\");",
+                  "    pm.expect(account).not.to.have.property(\"passwordHash\");",
+                  "    pm.expect(account.location.wineryName).to.equal(",
+                  "      String(pm.variables.get(\"newUserWineryName\")).trim()",
+                  "    );",
+                  "    pm.expect(account.location.latitude).to.equal(",
+                  "      Number(pm.variables.get(\"newUserLatitude\"))",
+                  "    );",
+                  "    pm.expect(account.location.longitude).to.equal(",
+                  "      Number(pm.variables.get(\"newUserLongitude\"))",
+                  "    );",
+                  "  });",
+                  "  if (Number.isInteger(account.id) && account.id > 0) {",
+                  "    pm.variables.set(\"createdUserId\", String(account.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "08 - Encerrar sessão",
       "description": "Execute ao concluir. Busca token CSRF atual, encerra a sessão e verifica 401. Rodar a coleção inteira também encerra a sessão ao final.",
       "item": [

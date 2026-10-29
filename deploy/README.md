@@ -2,8 +2,8 @@
 
 ## Serviços
 
-- Express: 127.0.0.1:3000 — leituras e histórico atuais do painel.
-- Java: 127.0.0.1:8080 — autenticação, ambientes, dispositivos e limites.
+- Express: 127.0.0.1:3000 — serviço legado interno; as rotas públicas de sensores estão bloqueadas.
+- Java: 127.0.0.1:8080 — autenticação, usuários, ambientes, dispositivos, limites, leituras, histórico e mapa.
 - PostgreSQL: 127.0.0.1:5432 — dados da aplicação.
 - Nginx: portas públicas 80 e 443.
 
@@ -51,8 +51,16 @@ Ativar os sites por links em /etc/nginx/sites-enabled.
 Inspecionar os arquivos e links existentes antes de substituir qualquer
 configuração. Não criar dois servidores default para a mesma porta.
 
-O HTTP mantém o acesso anterior ao Express e o caminho ACME.
-As rotas Java foram publicadas somente no servidor HTTPS.
+O HTTP preserva o caminho ACME para emissão e renovação do certificado.
+As rotas Java são publicadas somente no servidor HTTPS.
+As rotas /api/sensors e /api/sensors/* retornam 404 nos dois servidores,
+HTTP e HTTPS. Não reabrir o acesso público à telemetria do Express.
+
+O HTTPS encaminha para o Java os prefixos /api/auth/, /api/admin/,
+/api/devices e /api/environments, além de /api/wineries e
+/api/wineries/. Preserve os caminhos nas requisições encaminhadas.
+O snippet Java mantém os cabeçalhos de proxy, incluindo
+X-Forwarded-Proto, para informar a conexão HTTPS original.
 
 Antes de recarregar:
 
@@ -103,19 +111,58 @@ Após períodos desligado, conferir validade do certificado e renovação.
 
 ## Verificação de acesso
 
-Sem sessão autenticada:
+Sem sessão autenticada, no HTTPS:
 
 - GET /api/auth/csrf: 200 e cookie Secure, HttpOnly e SameSite=Lax.
 - GET /api/auth/me: 401.
 - GET /api/devices: 401.
-- GET /api/sensors/WineSensor002/readings: rota Express existente.
+- GET /api/admin/users: 401.
+- GET /api/wineries: 401.
 
-As leituras Express continuam públicas. O login Java não protege
-automaticamente as rotas Express.
+As rotas /api/sensors e /api/sensors/* devem retornar 404,
+com ou sem sessão, tanto em HTTP quanto em HTTPS.
 
-## Pendências
+Com sessão autenticada:
 
-- Integração do login e da gestão com o React.
+- GET /api/auth/me retorna username e role.
+- USER lista somente os dispositivos que cadastrou.
+- USER recebe 404 ao acessar um dispositivo de outra conta.
+- ADMIN pode consultar todos os dispositivos.
+- Dispositivos antigos sem proprietário ficam acessíveis somente ao ADMIN.
+- USER recebe 403 nas rotas administrativas.
+- ADMIN pode listar e criar contas USER.
+- Ambos os perfis podem consultar /api/wineries.
+- O mapa compartilha apenas nome e localização, sem contas ou sensores.
+- POST, PUT e DELETE protegidos também exigem token CSRF válido.
+
+A localização é obrigatória para novas contas USER. Contas antigas e
+a conta ADMIN podem permanecer sem localização; não recebem pontos
+fictícios no mapa. A versão atual não oferece edição de localização.
+
+O frontend utiliza as leituras e o histórico Java do dispositivo
+selecionado. Não deve fazer fallback para as rotas públicas antigas.
+
+## Integração validada e pendências
+
+Validado no painel local conectado à API implantada:
+
+- Login e administração de usuários.
+- Lista de dispositivos filtrada por proprietário e acesso ADMIN.
+- Leituras pela API Java.
+- Cadastro de localização e marcador no mapa compartilhado.
+- Conta USER sem acesso à administração ou sensores de outras contas.
+
+Provisionamento e remoção foram testados com um dispositivo temporário.
+O cadastro no IoT Agent não cria credenciais ou ACL MQTT. A remoção
+não revoga essas credenciais nem apaga o histórico STH.
+
+Limites persistidos por métrica não alteram automaticamente o ESP.
+O envio de configuração completa usa revisão e confirmação separadas.
+
+Pendências desta rodada:
+
 - Publicação dos arquivos finais do React pelo Nginx.
-- Provisionamento e remoção de dispositivos no FIWARE.
-- Avaliação dos limites e integração com comandos do ESP.
+- Conclusão do fluxo da revisão 2 e teste de persistência após reinício do ESP.
+- Validação física do alerta enviado pelo endpoint Java.
+- Revisão e execução da coleção Postman atualizada.
+- Consolidação dos componentes no repositório final da equipe.

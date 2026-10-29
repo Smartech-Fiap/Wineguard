@@ -129,3 +129,77 @@ Ao concluir, volte allowConfigurationRetry para false.
 A execução desta nova requisição no Postman contra a API real ainda
 está pendente. Não a considere validada fisicamente apenas porque
 o JSON foi conferido ou o envio recebeu 202.
+
+## Usuários, localização e mapa compartilhado
+
+A pasta 07B deve ser executada após o login e antes do logout.
+
+### Consultas
+
+- Listar usuários conforme o perfil: consulta a sessão antes do envio.
+  Espera 200 para ADMIN ou 403 para USER. Quando autorizado, verifica
+  que a resposta não contém senha nem hash.
+- Consultar mapa compartilhado: espera 200 com sessão autenticada.
+  Aceita lista vazia e verifica os campos de localização, as faixas
+  das coordenadas e Cache-Control: no-store. Não aceita campos extras
+  de contas ou sensores nos marcadores.
+
+Sem autenticação, /api/admin/users e /api/wineries devem retornar 401.
+
+### Cadastro individual de usuário
+
+A criação grava uma conta real no banco e exige sessão ADMIN e CSRF.
+A requisição fica desativada por padrão: allowUserCreation=false.
+
+No ambiente LOCAL do Postman, preencha:
+
+- newUserUsername
+- newUserPassword
+- newUserWineryName
+- newUserCity
+- newUserRegion
+- newUserCountry
+- newUserLatitude
+- newUserLongitude
+
+Use ponto como separador decimal nas coordenadas. Latitude aceita
+-90..90 e longitude -180..180, com até seis casas decimais.
+
+O nome de usuário deve ser único. A senha exige pelo menos
+12 caracteres e até 72 bytes em UTF-8. A API cria somente perfil USER.
+
+Habilite allowUserCreation=true apenas para executar o cadastro
+escolhido. Depois, volte para false. Não execute a coleção inteira
+com essa opção habilitada e não configure repetições automáticas.
+
+O script valida os campos antes do envio, obtém CSRF e monta o JSON
+sem concatenar a senha ao texto do corpo. A resposta esperada é 201;
+o ID retornado fica na variável temporária createdUserId, sem alterar
+o deviceId, o usuário ou a senha da sessão atual.
+
+Após criar a conta, consulte novamente o mapa. A criação da conta
+não autentica automaticamente o novo usuário e não cria sensores.
+
+Após timeout, erro de rede, 409 ou 502, consulte a lista administrativa
+antes de tentar criar novamente. Não presuma que houve reversão.
+
+Não versione senhas nem exportações do ambiente local preenchido.
+O arquivo de exemplo mantém newUserPassword vazio.
+
+### Verificações complementares
+
+Com uma conta USER nova, a lista de dispositivos deve estar vazia
+até que ela cadastre sensores. O ADMIN continua vendo todos.
+Dispositivos antigos sem proprietário ficam restritos ao ADMIN.
+Acesso direto a dispositivo de outra conta deve retornar 404.
+
+O mapa é compartilhado entre contas autenticadas, mas os dados dos
+sensores continuam privados. Contas antigas sem localização não
+recebem marcadores fictícios.
+
+As rotas antigas /api/sensors e /api/sensors/* devem retornar 404
+em HTTP e HTTPS. Leituras e histórico usam as rotas Java protegidas.
+
+A validação de JSON e sintaxe dos scripts não equivale à execução
+das requisições. A execução completa desta versão no Postman deve
+ser registrada separadamente como evidência de integração.

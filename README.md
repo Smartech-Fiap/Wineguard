@@ -11,7 +11,9 @@ Painel React ── HTTPS / Nginx
                     ├─ /api/auth/* ────────── Java / Spring Security
                     ├─ /api/environments* ─── Java
                     ├─ /api/devices* ──────── Java
-                    └─ /api/sensors/* ─────── Node.js / Express
+                    ├─ /api/admin/users ──── Java, somente ADMIN
+                    ├─ /api/wineries ─────── Java, mapa autenticado
+                    └─ /api/sensors/* ────── bloqueado no Nginx (404)
 
 Java ── PostgreSQL: cadastros, usuários, limites e configurações
      ├─ Orion: estado atual e envio de comandos
@@ -21,7 +23,7 @@ Java ── PostgreSQL: cadastros, usuários, limites e configurações
 ESP32 ⇄ MQTT/TLS ⇄ Mosquitto ⇄ IoT Agent ⇄ Orion
 ```
 
-Java e Express coexistem. As rotas Express de leituras/histórico têm contratos próprios; não devem ser substituídas pelas rotas Java sem adaptar o painel.
+O painel foi adaptado para consultar leituras e histórico pela API Java autenticada. O Express pode permanecer em execução interna, mas suas antigas rotas de sensores estão bloqueadas no Nginx em HTTP e HTTPS.
 
 ## Tecnologias
 
@@ -108,7 +110,11 @@ Fluxo para o painel ou cliente HTTP:
 
 O cookie é `HttpOnly`, `SameSite=Lax` e, por padrão, `Secure`. A sessão tem timeout de 30 minutos de inatividade e é encerrada ao reiniciar o backend. Essa implementação não persiste sessões no PostgreSQL.
 
-As rotas funcionais Java exigem autenticação. A saúde básica em `/actuator/health` e a obtenção de CSRF são públicas. Não há diferenciação de permissões por usuário nesta versão; os usuários habilitados compartilham o mesmo nível de acesso.
+As rotas funcionais Java exigem autenticação. A saúde básica em `/actuator/health` e a obtenção de CSRF são públicas. Existem dois perfis: ADMIN administra contas e acessa todos os dispositivos; USER acessa somente os dispositivos que cadastrou. O backend associa o proprietário à conta autenticada, sem aceitar essa escolha pelo cliente. Dispositivos antigos sem proprietário ficam acessíveis somente ao administrador.
+
+A autorização por proprietário também protege limites, leituras, histórico, comandos, provisionamento, remoção, configurações e reenvios. Acesso a dispositivo de outra conta retorna 404. Ambientes continuam sendo cadastros compartilhados; não há propriedade de ambientes nesta versão.
+
+GET /api/auth/me retorna username e role. Novas contas criadas pela API administrativa recebem perfil USER; o cliente não escolhe nem promove o perfil.
 
 ## Rotas Java
 
@@ -118,6 +124,8 @@ As rotas funcionais Java exigem autenticação. A saúde básica em `/actuator/h
 | POST | `/api/auth/login` | Autenticar |
 | GET | `/api/auth/me` | Consultar usuário da sessão |
 | POST | `/api/auth/logout` | Encerrar sessão |
+| GET / POST | `/api/admin/users` | Listar / criar contas, somente ADMIN |
+| GET | `/api/wineries` | Consultar localizações compartilhadas, com autenticação |
 | GET / POST | `/api/environments` | Listar / criar ambientes |
 | GET / POST | `/api/devices` | Listar / cadastrar dispositivos |
 | DELETE | `/api/devices/{id}` | Remover dispositivo do IoT Agent, Orion e cadastro local |
@@ -128,6 +136,7 @@ As rotas funcionais Java exigem autenticação. A saúde básica em `/actuator/h
 | POST | `/api/devices/{id}/commands/alert` | Enviar comando manual de alerta |
 | POST | `/api/devices/{id}/configuration` | Registrar e enviar configuração completa ao ESP |
 | GET | `/api/devices/{id}/configuration` | Consultar e reconciliar a configuração mais recente |
+| POST | `/api/devices/{id}/configuration/{revision}/retry` | Reenviar explicitamente a mesma revisão e seus valores armazenados |
 
 Exemplo de cadastro, usando um ambiente já existente:
 
@@ -155,12 +164,11 @@ O Java retorna a leitura Orion no formato `keyValues`. O histórico usa `dateFro
 
 A consulta STH atual fixa `hLimit=20` e `hOffset=0`: retorna a primeira página do intervalo, não garante os vinte pontos mais recentes nem a série inteira. Não há paginação exposta nessa rota.
 
-As rotas Express mantidas para o dashboard são:
+As rotas antigas /api/sensors e /api/sensors/* retornam 404 no Nginx em HTTP e HTTPS. Elas não devem ser reabertas, pois não aplicam a autorização por proprietário.
 
-- `GET /api/sensors/WineSensor002/readings`
-- `GET /api/sensors/WineSensor002/history?attribute=temperature&limit=20`
+O painel consulta as rotas Java do dispositivo selecionado, sem fallback para o Express. Uma conta sem dispositivos não consulta telemetria. Dados da seleção anterior ficam ocultos ao trocar de conta ou dispositivo.
 
-Essas rotas Express de leitura continuam públicas na implantação atual. A proteção da API Java não se aplica automaticamente a elas. O frontend usa a mesma origem HTTPS pública e não acessa diretamente MQTT, Orion ou STH.
+O histórico do painel consulta uma janela de 24 horas, limitada à primeira página de 20 registros; isso não garante os 20 pontos mais recentes. O navegador não acessa diretamente MQTT, Orion ou STH.
 
 ## Alertas e configuração do ESP
 
@@ -182,6 +190,60 @@ O firmware utiliza limites padrão na primeira inicialização, histerese local 
 
 Consulte o contrato completo, os tópicos MQTT e as limitações em [docs/configuracao-do-esp.md](docs/configuracao-do-esp.md).
 
+## Cadastro de usuários e mapa de vinícolas
+
+Somente ADMIN pode listar e criar contas pelas rotas GET e POST
+/api/admin/users. O cadastro cria uma conta USER com senha e localização
+obrigatórias. O cliente não escolhe o perfil.
+
+Exemplo fictício do corpo de criação:
+
+```json
+{
+  "username": "usuario.exemplo",
+  "password": "Senha-ficticia-123!",
+  "location": {
+    "wineryName": "Vinícola de exemplo",
+    "city": "São Paulo",
+    "region": "São Paulo",
+    "country": "Brasil",
+    "latitude": -23.55052,
+    "longitude": -46.633308
+  }
+}
+```
+
+A senha acima é apenas um exemplo. A API não retorna senha nem hash.
+O nome de usuário diferencia maiúsculas e minúsculas e aceita de 3 a
+100 caracteres: letras sem acentos, números, ponto, hífen e sublinhado.
+A senha exige pelo menos 12 caracteres e no máximo 72 bytes em UTF-8.
+
+Nome da vinícola aceita até 150 caracteres; cidade, região e país,
+até 100 cada. Latitude aceita -90..90 e longitude -180..180, com até
+seis casas decimais. Esses campos são obrigatórios para novas contas USER.
+
+O painel permite escolher o ponto no mapa ou digitar coordenadas.
+Não há geocodificação automática: o administrador deve conferir se
+o ponto corresponde ao endereço informado.
+
+A conta ADMIN pode permanecer sem localização. Contas antigas sem
+localização continuam válidas, mas não recebem marcadores fictícios.
+Esta versão não oferece uma rota para editar a localização dessas contas.
+
+GET /api/wineries exige autenticação. USER e ADMIN veem todas as
+localizações retornadas. A resposta contém somente id, wineryName,
+city, region, country, latitude e longitude, com Cache-Control: no-store.
+
+A consulta inclui somente contas habilitadas com localização cadastrada.
+Não retorna nome de usuário, senha, dispositivos ou leituras.
+
+O Nginx deve encaminhar /api/admin/, /api/wineries e /api/wineries/
+para o Java. O proxy local do Vite também encaminha essas rotas para
+a mesma API usada na autenticação.
+
+O mapa usa Leaflet e tiles OpenStreetMap com atribuição. Após cadastrar
+uma conta com localização, o painel atualiza os marcadores.
+
 ## Persistência e migrações
 
 - V1: ambientes, dispositivos e limites por métrica.
@@ -189,6 +251,9 @@ Consulte o contrato completo, os tópicos MQTT e as limitações em [docs/config
 - V3: identificador MQTT dos dispositivos.
 - V4: configurações completas, revisões e estados de confirmação.
 - V5: contador de tentativas, última tentativa e bloqueio temporário de envio.
+- V6: perfis ADMIN e USER.
+- V7: proprietário dos dispositivos; registros antigos permanecem sem atribuição automática.
+- V8: localização da vinícola na conta, com restrições de coordenadas e preenchimento completo ou totalmente ausente.
 
 Tabelas da aplicação: `environments`, `devices`, `device_limits`, `app_users` e `device_configurations`. Flyway mantém também `flyway_schema_history`.
 
@@ -201,10 +266,17 @@ Não altere migrações já aplicadas. Mudanças posteriores no schema devem rec
 ./mvnw clean package
 ```
 
-No Windows, use `mvnw.cmd`. A suíte atual tem 45 testes unitários, sem dependência de banco, FIWARE ou ESP:
+No Windows, use `mvnw.cmd`. A suíte atual tem 77 testes unitários e de controlador/segurança com dependências simuladas, sem exigir PostgreSQL, FIWARE ou ESP em execução:
 
 - `EspConfigurationReportTest`: interpretação da configuração ativa.
 - `EspConfigurationResultTest`: interpretação de confirmações e rejeições.
+- Testes de controle de tentativas e reenvio de configurações.
+- Testes de administração de usuários, hashes e localização obrigatória.
+- Testes de autenticação, perfis ADMIN/USER, CSRF e coordenadas inválidas.
+- Testes de propriedade dos dispositivos.
+- Testes de acesso ao mapa e de respostas sem dados de contas ou sensores.
+
+Repositórios simulados não validam consultas JPA reais nem restrições SQL. A inicialização e os testes na implantação complementam essa cobertura.
 
 Validações manuais realizadas na integração:
 
@@ -216,8 +288,15 @@ Validações manuais realizadas na integração:
 - Repetição da mesma revisão retornando `already_applied`.
 - POST da revisão 2 retornando `202`; ausência de confirmação com ESP desconectado resultando em `UNCONFIRMED`.
 - Correção e teste do envio HTTP do Spring com Content-Length, exigido pelo Orion instalado.
+- Inicialização do backend com as migrações V6, V7 e V8.
+- Bloqueio das rotas antigas de sensores com 404 em HTTP e HTTPS.
+- Conta comum sem dispositivos não exibindo sensores nem leituras; ADMIN consultando WineGuard 002.
+- Cadastro de nova conta com localização e exibição do marcador no mapa.
+- Nova conta visualizando o mapa compartilhado, sem administração nem sensores de outras contas.
 
-Os testes unitários não substituem os testes físicos. Ficam pendentes a conclusão do fluxo da revisão 2, a persistência após reinício do ESP e a integração da versão atualizada do dashboard. O acionamento físico pelo novo endpoint Java de alerta também precisa de validação conjunta.
+Os testes automatizados não substituem os testes físicos. Ficam pendentes a conclusão do fluxo da revisão 2, a persistência após reinício do ESP e a validação conjunta do acionamento físico pelo endpoint Java de alerta nesta rodada.
+
+A integração de usuários, propriedade dos sensores e mapa foi verificada manualmente no painel local conectado à API implantada. Isso não equivale à publicação final do frontend.
 
 ## Implantação e documentação
 
