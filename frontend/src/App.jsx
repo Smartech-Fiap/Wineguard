@@ -1389,16 +1389,19 @@ function App() {
             {!limitsLoading && limitsError && <RequestMessage error={limitsError} label="limites" onRetry={retryLimits} />}
             {activeLimitDevice === null && !devicesLoading && !devicesError && <RequestMessage empty label="dispositivos para configurar limites" />}
             {!limitsLoading && !limitsError && activeLimitDevice !== null && <div className="limit-editor-grid">
-              {Object.keys(deviceMetrics).map((metricName) => (
+              {Object.keys(deviceMetrics).map((metricName) => {
+                const current = deviceLimits.find((limit) => limit.metric === metricName)
+                return (
                 <LimitEditor
-                  key={`${activeLimitDevice}-${metricName}`}
+                  key={JSON.stringify([activeLimitDevice, metricName, current ?? null])}
                   deviceId={activeLimitDevice}
                   metric={metricName}
-                  current={deviceLimits.find((limit) => limit.metric === metricName)}
+                  current={current}
                   busy={limitBusy}
                   onSave={handleSaveLimit}
                 />
-              ))}
+                )
+              })}
             </div>}
           </section>
 
