@@ -120,7 +120,7 @@ Os comandos são enviados sem retenção.
 Nesta configuração, não se deve presumir entrega enquanto o ESP
 estiver desconectado.
 
-Não existe reenvio automático nem endpoint de reenvio da mesma revisão.
+Não existe reenvio automático. Há uma rota explícita para recuperar a mesma revisão, descrita abaixo.
 
 Após timeout, erro de rede ou 502, consulte o estado antes de qualquer
 nova tentativa. O registro pode ter sido criado e o comando enviado.
@@ -175,3 +175,46 @@ das faixas finais para conservação de vinhos.
 - Testar persistência após reiniciar o ESP.
 - Concluir a integração e os testes do dashboard.
 - Automatizar os testes hoje executados manualmente.
+
+## Recuperação explícita da mesma revisão
+
+POST /api/devices/{deviceId}/configuration/{revision}/retry
+
+Exige sessão autenticada e CSRF. Não recebe novos valores no corpo.
+
+- Somente a revisão mais recente pode ser recuperada.
+- Se ela já estiver APPLIED, retorna 200 sem enviar comandos.
+- Configurações REJECTED não podem ser reenviadas.
+- Antes do reenvio, o backend consulta o Orion.
+- Falha nessa consulta interrompe a operação, sem enviar comandos.
+- A configuração informada pelo ESP precisa ter formato reconhecido.
+- Uma confirmação compatível recebida nessa consulta evita novo envio.
+- Revisão igual com valores divergentes, ou revisão superior no ESP,
+  bloqueia o reenvio para reconciliação.
+- O reenvio exige estado UNCONFIRMED após o prazo de espera.
+- Uma tentativa em andamento bloqueia outra reserva.
+- Uma reserva interrompida pode ser recuperada após 60 segundos.
+- Há intervalo mínimo de 30 segundos entre tentativas.
+- A comunicação acontece fora da transação do banco.
+
+Resposta 202 indica reenvio da mesma revisão em estado PENDING.
+A data original createdAt e os valores são preservados.
+O prazo de confirmação passa a usar a última tentativa registrada.
+A resposta 202 não comprova aplicação física.
+
+Conflitos retornam 409. Dispositivo inexistente retorna 404.
+Falha de comunicação com FIWARE retorna 502; consulte o estado antes
+de qualquer nova tentativa. Não repita automaticamente o POST.
+
+A migração V5 acrescenta attempt_count, last_attempt_at e
+dispatch_lease_until. Esses campos são internos ao banco e não foram
+acrescentados ao contrato JSON da resposta.
+O contador cobre somente tentativas registradas pelo novo mecanismo;
+não reconstrói os envios antigos feitos pelo JShell.
+
+Validação realizada nesta etapa: 45 testes unitários aprovados,
+migração aplicada, saúde UP e bloqueios HTTP 403, 401, 409 e 404
+verificados sem registrar tentativas.
+Os testes usam simulações para as regras de serviço; a concorrência
+entre transações reais do PostgreSQL ainda não foi validada.
+O reenvio real da revisão 2 continua pendente da conexão do ESP.

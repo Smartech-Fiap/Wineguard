@@ -176,7 +176,7 @@ Valores aceitos: `normal`, `temperature`, `humidity` e `luminosity`. A resposta 
 
 Uma configuração só passa para `APPLIED` após a telemetria corresponder à revisão e aos cinco valores registrados. A reconciliação e a verificação do prazo de 30 segundos ocorrem na consulta GET; não há tarefa periódica nesta versão.
 
-Resultados indefinidos bloqueiam novos envios. Não há reenvio automático nem endpoint de reenvio da mesma revisão. Consulte o estado após falha de rede, timeout ou `502`, pois a operação pode ter sido parcialmente executada.
+Resultados indefinidos bloqueiam novos envios. Não há reenvio automático. O reenvio explícito usa `POST /api/devices/{id}/configuration/{revision}/retry`, preservando a revisão e os valores. Consulte [o contrato](docs/configuracao-do-esp.md). Consulte o estado após falha de rede, timeout ou `502`, pois a operação pode ter sido parcialmente executada.
 
 O firmware utiliza limites padrão na primeira inicialização, histerese local e armazenamento NVS das configurações. A persistência após reinício ainda precisa de validação física nesta rodada de integração. Os valores usados nos testes são de bancada, não limites operacionais aprovados para vinhos.
 
@@ -188,6 +188,7 @@ Consulte o contrato completo, os tópicos MQTT e as limitações em [docs/config
 - V2: usuários da aplicação.
 - V3: identificador MQTT dos dispositivos.
 - V4: configurações completas, revisões e estados de confirmação.
+- V5: contador de tentativas, última tentativa e bloqueio temporário de envio.
 
 Tabelas da aplicação: `environments`, `devices`, `device_limits`, `app_users` e `device_configurations`. Flyway mantém também `flyway_schema_history`.
 
@@ -200,7 +201,7 @@ Não altere migrações já aplicadas. Mudanças posteriores no schema devem rec
 ./mvnw clean package
 ```
 
-No Windows, use `mvnw.cmd`. A suíte atual tem 18 testes unitários, sem dependência de banco, FIWARE ou ESP:
+No Windows, use `mvnw.cmd`. A suíte atual tem 45 testes unitários, sem dependência de banco, FIWARE ou ESP:
 
 - `EspConfigurationReportTest`: interpretação da configuração ativa.
 - `EspConfigurationResultTest`: interpretação de confirmações e rejeições.

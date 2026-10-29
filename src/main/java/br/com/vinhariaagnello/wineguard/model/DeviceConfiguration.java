@@ -68,6 +68,15 @@ public class DeviceConfiguration {
     @Column(name = "confirmed_at")
     private Instant confirmedAt;
 
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount;
+
+    @Column(name = "last_attempt_at")
+    private Instant lastAttemptAt;
+
+    @Column(name = "dispatch_lease_until")
+    private Instant dispatchLeaseUntil;
+
     public DeviceConfiguration(
             Device device,
             Long revision,
@@ -84,10 +93,56 @@ public class DeviceConfiguration {
         this.humidityMax = humidityMax;
         this.luminosityMax = luminosityMax;
     }
-    /** Registra ausência de confirmação, preservando o resultado indefinido. */
-    public boolean markUnconfirmed(Instant now) {
+    /** Reserva uma tentativa; deve ser chamada com o registro bloqueado. */
+    public boolean beginAttempt(Instant now) {
         if (status != ConfigurationStatus.PENDING
-                || now.isBefore(createdAt.plusSeconds(30))) {
+                && status != ConfigurationStatus.UNCONFIRMED) {
+            return false;
+        }
+
+        if (dispatchLeaseUntil != null
+                && now.isBefore(dispatchLeaseUntil)) {
+            return false;
+        }
+
+        if (attemptCount == Integer.MAX_VALUE) {
+            return false;
+        }
+
+        markUnconfirmed(now);
+
+        if (status == ConfigurationStatus.PENDING && attemptCount > 0) {
+            return false;
+        }
+
+        if (lastAttemptAt != null
+                && now.isBefore(lastAttemptAt.plusSeconds(30))) {
+            return false;
+        }
+
+        attemptCount++;
+        lastAttemptAt = now;
+        dispatchLeaseUntil = now.plusSeconds(60);
+        status = ConfigurationStatus.PENDING;
+        rejectionReason = null;
+        confirmedAt = null;
+        return true;
+    }
+
+    /** Uma conclusão antiga não pode liberar uma tentativa mais recente. */
+    public void finishAttempt(int expectedAttempt) {
+        if (attemptCount == expectedAttempt) {
+            dispatchLeaseUntil = null;
+        }
+    }
+    /** Conta o prazo desde a última tentativa registrada. */
+    public boolean markUnconfirmed(Instant now) {
+        Instant reference = lastAttemptAt != null
+                ? lastAttemptAt
+                : createdAt;
+
+        if (status != ConfigurationStatus.PENDING
+                || now.isBefore(reference.plusSeconds(30))) {
             return false;
         }
 

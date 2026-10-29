@@ -45,6 +45,29 @@ public class DeviceConfigurationController {
                 .body(configurations.send(deviceId, request));
     }
 
+    @PostMapping("/{revision}/retry")
+    public ResponseEntity<?> retry(
+            @PathVariable Long deviceId,
+            @PathVariable Long revision) {
+
+        if (!enabled) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of(
+                            "error",
+                            "O envio de configurações ao ESP "
+                                    + "ainda não está habilitado."));
+        }
+
+        DeviceConfigurationService.RetryOutcome outcome =
+                configurations.retry(deviceId, revision);
+
+        return ResponseEntity
+                .status(outcome.sent()
+                        ? HttpStatus.ACCEPTED
+                        : HttpStatus.OK)
+                .body(outcome.configuration());
+    }
+
     @GetMapping
     public ConfigurationResponse latest(
             @PathVariable Long deviceId) {

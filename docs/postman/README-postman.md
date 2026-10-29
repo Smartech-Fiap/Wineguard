@@ -80,7 +80,7 @@ O POST gera uma nova revisão e responde 202/PENDING. Consulte depois a requisi�
 
 Não há polling nesta coleção. Faça consultas GET após o envio; a passagem para UNCONFIRMED é calculada na consulta após 30 segundos. Uma confirmação tardia ainda pode concluir o registro.
 
-Após timeout, erro de rede ou 502, não repita automaticamente o POST. Consulte a configuração: o registro pode ter sido criado e o comando enviado. Enquanto houver PENDING/UNCONFIRMED, novos envios são bloqueados. Não existe endpoint de reenvio da mesma revisão. Preservar o registro faz parte da recuperação operacional.
+Após timeout, erro de rede ou 502, não repita automaticamente o POST. Consulte a configuração: o registro pode ter sido criado e o comando enviado. Enquanto houver PENDING/UNCONFIRMED, novos envios são bloqueados. O backend agora oferece `POST /api/devices/{id}/configuration/{revision}/retry`. Esta versão da coleção ainda não inclui essa requisição. Preservar o registro faz parte da recuperação operacional.
 
 HTTP 503 indica envio desabilitado no ambiente Java. Não altere o flag de execução do backend apenas para fazer o teste passar.
 
