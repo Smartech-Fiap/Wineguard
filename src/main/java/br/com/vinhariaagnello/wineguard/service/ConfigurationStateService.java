@@ -5,6 +5,7 @@ import br.com.vinhariaagnello.wineguard.dto.ConfigurationResponse;
 import br.com.vinhariaagnello.wineguard.integration.fiware.EspConfigurationReport;
 import br.com.vinhariaagnello.wineguard.model.DeviceConfiguration;
 import br.com.vinhariaagnello.wineguard.repository.DeviceConfigurationRepository;
+import br.com.vinhariaagnello.wineguard.integration.fiware.EspConfigurationResult;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -23,7 +24,8 @@ public class ConfigurationStateService {
     public ConfigurationResponse refresh(
             Long deviceId,
             Long revision,
-            Optional<EspConfigurationReport> report) {
+            Optional<EspConfigurationReport> report,
+            Optional<EspConfigurationResult> result) {
 
         DeviceConfiguration configuration = configurations
                 .findForUpdate(deviceId, revision)
@@ -36,6 +38,10 @@ public class ConfigurationStateService {
         if (report.isPresent()
                 && matches(configuration, report.get())) {
             configuration.markApplied(now);
+        } else if (result.isPresent()
+                && result.get().revision() == revision.longValue()
+                && result.get().rejected()) {
+            configuration.markRejected(result.get().reason(), now);
         } else {
             configuration.markUnconfirmed(now);
         }

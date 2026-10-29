@@ -19,25 +19,25 @@ public final class ConfigurationDtos {
             @NotNull
             @DecimalMin("-20")
             @DecimalMax("60")
-            @Digits(integer = 2, fraction = 3)
+            @Digits(integer = 2, fraction = 1)
             BigDecimal temperatureMin,
 
             @NotNull
             @DecimalMin("-20")
             @DecimalMax("60")
-            @Digits(integer = 2, fraction = 3)
+            @Digits(integer = 2, fraction = 1)
             BigDecimal temperatureMax,
 
             @NotNull
             @DecimalMin("0")
             @DecimalMax("100")
-            @Digits(integer = 3, fraction = 3)
+            @Digits(integer = 3, fraction = 1)
             BigDecimal humidityMin,
 
             @NotNull
             @DecimalMin("0")
             @DecimalMax("100")
-            @Digits(integer = 3, fraction = 3)
+            @Digits(integer = 3, fraction = 1)
             BigDecimal humidityMax,
 
             @NotNull

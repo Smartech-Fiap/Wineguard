@@ -6,6 +6,7 @@ import br.com.vinhariaagnello.wineguard.integration.fiware.EspConfigurationRepor
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareConfigurationCommandService;
 import br.com.vinhariaagnello.wineguard.integration.fiware.FiwareReadingsService;
 import br.com.vinhariaagnello.wineguard.model.Device;
+import br.com.vinhariaagnello.wineguard.integration.fiware.EspConfigurationResult;
 
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +51,7 @@ public class DeviceConfigurationService {
         ConfigurationResponse configuration = state.latest(deviceId);
 
         Optional<EspConfigurationReport> report = Optional.empty();
+        Optional<EspConfigurationResult> result = Optional.empty();
 
         try {
             Map<String, Object> current = readings.current(device);
@@ -57,6 +59,9 @@ public class DeviceConfigurationService {
             if (current != null) {
                 report = EspConfigurationReport.parse(
                         current.get("configuration"));
+
+                result = EspConfigurationResult.parse(
+                        current.get("configure_info"));
             }
         } catch (RestClientException exception) {
             LOG.warn(
@@ -68,6 +73,7 @@ public class DeviceConfigurationService {
         return state.refresh(
                 deviceId,
                 configuration.revision(),
-                report);
+                report,
+                result);
     }
 }

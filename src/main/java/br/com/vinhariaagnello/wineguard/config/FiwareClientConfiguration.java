@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -29,6 +30,7 @@ public class FiwareClientConfiguration {
 
     private RestClient createClient(String baseUrl) {
         HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
 
@@ -40,6 +42,10 @@ public class FiwareClientConfiguration {
         return RestClient.builder()
                 .baseUrl(baseUrl)
                 .requestFactory(factory)
+                .bufferContent((uri, method) ->
+                        method == HttpMethod.POST
+                                || method == HttpMethod.PUT
+                                || method == HttpMethod.PATCH)
                 .build();
     }
 }
