@@ -203,3 +203,32 @@ em HTTP e HTTPS. Leituras e histórico usam as rotas Java protegidas.
 A validação de JSON e sintaxe dos scripts não equivale à execução
 das requisições. A execução completa desta versão no Postman deve
 ser registrada separadamente como evidência de integração.
+
+## Evidências da execução manual — 29/10/2026
+
+Execução individual no Postman contra a API HTTPS implantada:
+
+| Verificação | Resultado |
+|---|---|
+| Obter CSRF | 200 |
+| Login ADMIN e consulta da sessão | 200, perfil ADMIN |
+| Listar contas como ADMIN | 200, testes aprovados |
+| Consultar mapa como ADMIN | 200, testes aprovados |
+| Login USER e consulta da sessão | 200, perfil USER |
+| Listar contas como USER | 403, teste de permissão aprovado |
+| Consultar mapa como USER | 200, testes aprovados |
+| Listar dispositivos da conta USER sem sensores | 200, lista vazia |
+| Consultar leitura do dispositivo 1 como outra conta USER | 404 |
+| Logout e confirmação de sessão encerrada | 200 e 401 |
+
+Na verificação negativa de leitura, o teste original da requisição
+espera 200. O resultado 404 foi conferido manualmente como bloqueio
+correto de acesso ao dispositivo de outra conta.
+
+O cadastro com localização foi validado pelo painel, mas a nova
+requisição de cadastro no Postman ainda não foi executada.
+
+Não foi executada a coleção inteira nem todas as operações de escrita.
+Estas evidências não substituem testes físicos do ESP, testes de
+concorrência ou verificação de autorização em cada rota individual.
+Nenhuma senha, cookie ou token faz parte deste registro.
