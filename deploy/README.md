@@ -161,8 +161,35 @@ O envio de configuração completa usa revisão e confirmação separadas.
 
 Pendências desta rodada:
 
-- Publicação dos arquivos finais do React pelo Nginx.
-- Conclusão do fluxo da revisão 2 e teste de persistência após reinício do ESP.
-- Validação física do alerta enviado pelo endpoint Java.
-- Revisão e execução da coleção Postman atualizada.
-- Consolidação dos componentes no repositório final da equipe.
+- Concluir a execução das operações ainda não testadas da coleção Postman, incluindo o novo cadastro de usuário.
+- Consolidar backend, firmware, infraestrutura e documentação no repositório final da equipe.
+- Conferir os documentos e materiais da apresentação antes da entrega.
+
+## Publicação do painel na Vercel
+
+Frontend publicado: https://wineguard-peach.vercel.app/
+
+O repositório final é https://github.com/Smartech-Fiap/Wineguard,
+com Root Directory frontend na Vercel. Os demais componentes ainda
+estão em consolidação.
+
+O vercel.json encaminha /api/* para a API HTTPS da AWS.
+O Nginx continua atendendo a API, bloqueando as rotas antigas dos
+sensores e preservando o caminho ACME. O frontend não precisa ser
+publicado pelo Nginx nessa topologia.
+
+Verificações realizadas no endereço da Vercel:
+
+- Página inicial: 200.
+- Sessão, dispositivos e mapa sem login: 401.
+- CSRF: 200, cookie Secure, HttpOnly, SameSite=Lax e sem Domain.
+- Rota antiga de sensores: 404.
+- Respostas da API com Cache-Control: private, no-store.
+- Login ADMIN, leituras, sessão após recarga e logout.
+- Conta USER com mapa compartilhado, sem administração ou sensor alheio.
+- Salvamento de limite de temperatura com CSRF.
+- Alerta físico de temperatura e encerramento com normal.
+- Recuperação da revisão 2 e confirmação APPLIED após recarga.
+
+O painel estático depende da API AWS disponível e de certificado
+válido. A hospedagem na Vercel não mantém o laboratório AWS ativo.

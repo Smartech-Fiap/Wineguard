@@ -294,9 +294,9 @@ Validações manuais realizadas na integração:
 - Cadastro de nova conta com localização e exibição do marcador no mapa.
 - Nova conta visualizando o mapa compartilhado, sem administração nem sensores de outras contas.
 
-Os testes automatizados não substituem os testes físicos. Ficam pendentes a conclusão do fluxo da revisão 2, a persistência após reinício do ESP e a validação conjunta do acionamento físico pelo endpoint Java de alerta nesta rodada.
+Os testes automatizados não substituem os testes físicos. Nesta rodada, foram verificados o alerta de temperatura pelo endpoint Java, seu encerramento com normal, a recuperação da revisão 2 e a manutenção da configuração após o reinício solicitado do ESP.
 
-A integração de usuários, propriedade dos sensores e mapa foi verificada manualmente no painel local conectado à API implantada. Isso não equivale à publicação final do frontend.
+O frontend foi publicado em https://wineguard-peach.vercel.app/. Pela Vercel, foram verificados login ADMIN e USER, sessão após recarga, logout, mapa, restrições por perfil e salvamento de limite com CSRF. O alerta físico e a recuperação da revisão 2 também foram executados pelo painel publicado.
 
 ## Implantação e documentação
 
@@ -304,4 +304,4 @@ Os modelos de Nginx, systemd e renovação de certificados estão em [deploy/REA
 
 O repositório representa o componente Java e será reunido aos demais componentes pela equipe. Não se presume publicação automática dos commits locais na branch remota.
 
-Documentos anteriores, como a coleção Postman de nove endpoints, o guia da equipe, o diagrama e as páginas iniciais de API/banco/execução, podem descrever o contrato antigo. Precisam ser revisados para incluir autenticação, mqttDeviceId e as novas rotas; não devem ser usados como evidência de cobertura completa da versão atual.
+A coleção Postman atualizada e suas evidências estão em docs/postman. A execução registrada foi parcial, não uma execução integral da coleção. Outros documentos antigos, como o guia da equipe, o diagrama e as páginas iniciais de API/banco/execução, ainda precisam ser conferidos antes da entrega final.

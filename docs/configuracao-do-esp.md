@@ -164,17 +164,17 @@ também recebeu 204.
 - Repetição da revisão 1 retornou already_applied.
 - POST pela API criou a revisão 2 e respondeu 202.
 - Com o ESP desconectado, a revisão 2 permaneceu UNCONFIRMED.
-- A revisão 2 ainda aguarda recuperação e confirmação.
+- Após reconexão, o reenvio explícito da revisão 2 pelo painel foi confirmado como APPLIED.
 
 Os limites usados nesses testes são de bancada, não uma aprovação
 das faixas finais para conservação de vinhos.
 
 ## Validações pendentes
 
-- Confirmar a revisão 2 após reconexão.
-- Testar persistência após reiniciar o ESP.
-- Concluir a integração e os testes do dashboard.
-- Automatizar os testes hoje executados manualmente.
+- Validar concorrência entre transações reais do PostgreSQL.
+- Ampliar a automação dos cenários físicos e de integração conforme necessário.
+
+A recuperação da revisão 2, a manutenção da configuração após o reinício solicitado e os testes do dashboard publicado foram concluídos nesta rodada.
 
 ## Recuperação explícita da mesma revisão
 
@@ -217,4 +217,4 @@ migração aplicada, saúde UP e bloqueios HTTP 403, 401, 409 e 404
 verificados sem registrar tentativas.
 Os testes usam simulações para as regras de serviço; a concorrência
 entre transações reais do PostgreSQL ainda não foi validada.
-O reenvio real da revisão 2 continua pendente da conexão do ESP.
+O reenvio real da revisão 2 foi executado após a reconexão do ESP. O Orion recebeu configuration=v1,2,15.0,29.0,40.0,82.0,3500, configure_info=v1,2,applied e configure_status=OK. Após o reinício solicitado, o Serial continuou publicando a revisão 2; o painel também manteve APPLIED após recarga.
