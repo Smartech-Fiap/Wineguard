@@ -1,13 +1,26 @@
 {
   "info": {
-    "name": "WineGuard API - Demonstração completa",
-    "description": "Fluxo demonstrativo de todos os 9 endpoints do backend. Execute na ordem com Runner: saúde, ambiente, dispositivo, limites e leituras. As criações usam dados fictícios e geram novos registros a cada execução. Leituras FIWARE dependem das VMs Orion/STH-Comet; 502 é tratado como dependência indisponível, não como sucesso de leitura.",
+    "name": "WineGuard API — sessão e integração atual",
+    "description": "Contrato atual do backend Java. Use Postman Desktop atualizado e cookie jar habilitado. Configure um ambiente local; não exporte credenciais/cookies. Execute primeiro a pasta 01. As consultas precisam de deviceId real. Escritas ficam ignoradas enquanto suas flags forem false. Não execute a coleção inteira com flags habilitadas: escolha uma pasta/requisição. Nenhum teste considera 502 como sucesso de leitura ou 202 como aplicação física. Veja README-postman.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080",
+      "value": "http://127.0.0.1:8080",
+      "type": "string"
+    },
+    {
+      "key": "healthUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "",
       "type": "string"
     },
     {
@@ -16,8 +29,53 @@
       "type": "string"
     },
     {
-      "key": "deviceId",
+      "key": "demoEnvironmentId",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "operationDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "confirmRemovalDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "alertCommand",
+      "value": "normal",
+      "type": "string"
+    },
+    {
+      "key": "allowCatalogWrites",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowProvision",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowAlert",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowConfiguration",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowRemoval",
+      "value": "false",
       "type": "string"
     },
     {
@@ -33,15 +91,21 @@
   ],
   "item": [
     {
-      "name": "1 - Saúde",
+      "name": "01 - Autenticação",
+      "description": "Execute esta pasta primeiro. Reexecute após expiração ou reinício do Java. Cookie jar habilitado; o login não utiliza Basic/Bearer.",
       "item": [
         {
-          "name": "Verificar API",
+          "name": "01 - Obter CSRF",
           "request": {
             "method": "GET",
-            "description": "Confirma se a API Spring Boot está respondendo.",
-            "header": [],
-            "url": "{{baseUrl}}/actuator/health"
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/csrf"
           },
           "response": [],
           "event": [
@@ -51,38 +115,107 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Status de saúde UP\", function () { pm.expect(pm.response.json().status).to.eql(\"UP\"); });"
+                  "pm.test(\"Contrato CSRF\", function () { const d=pm.response.json(); pm.expect(d.headerName).to.be.a(\"string\"); pm.expect(d.token).to.be.a(\"string\"); pm.expect(d.token.length).to.be.above(0); });"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "2 - Ambientes",
-      "item": [
+        },
         {
-          "name": "Criar ambiente de demonstração",
+          "name": "02 - Login (credenciais no ambiente local)",
           "request": {
             "method": "POST",
-            "description": "Cria um ambiente fictício com nome único. O ID retornado alimenta automaticamente o cadastro do sensor.",
+            "description": "Envia usuário e senha locais. O cookie de sessão fica no cookie jar do Postman. Não salve credenciais na coleção. O pré-script busca CSRF antes do login; as escritas seguintes também buscam um token atual.",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "if (!pm.variables.get(\"username\") || !pm.variables.get(\"password\")) skip(\"Login ignorado: configure username e password no ambiente local, sem versioná-los.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Login autenticado\", function () { pm.expect(pm.response.json().status).to.eql(\"authenticated\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Usuário autenticado",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/api/environments",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Adega Demo {{$guid}}\",\n  \"description\": \"Ambiente fictício criado pela coleção Postman\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
+            "url": "{{baseUrl}}/api/auth/me"
           },
           "response": [],
           "event": [
@@ -91,10 +224,60 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-                  "const created = pm.response.json();",
-                  "if (created.id) pm.collectionVariables.set(\"environmentId\", String(created.id));",
-                  "pm.test(\"Resposta contém ID do ambiente\", function () { pm.expect(created.id).to.exist; });"
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Usuário informado\", function () { pm.expect(pm.response.json().username).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Consultas",
+      "description": "Não altera cadastros ou limites. O GET configuration pode atualizar o estado da configuração no banco ao reconciliar a telemetria.",
+      "item": [
+        {
+          "name": "Saúde Java (URL opcional)",
+          "request": {
+            "method": "GET",
+            "description": "A saúde não está necessariamente publicada pelo Nginx. Configure healthUrl somente quando houver um endpoint alcançável; vazio ignora esta requisição.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{healthUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "const health=String(pm.variables.get(\"healthUrl\") || \"\"); if (!health.startsWith(\"http://\") && !health.startsWith(\"https://\")) skip(\"Saúde ignorada: configure healthUrl se houver rota disponível.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Saúde UP\", function () { pm.expect(pm.response.json().status).to.eql(\"UP\"); });"
                 ]
               }
             }
@@ -104,8 +287,13 @@
           "name": "Listar ambientes",
           "request": {
             "method": "GET",
-            "description": "Lista ambientes persistidos no PostgreSQL.",
-            "header": [],
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/environments"
           },
           "response": [],
@@ -116,50 +304,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "3 - Dispositivos",
-      "item": [
-        {
-          "name": "Cadastrar sensor de demonstração",
-          "request": {
-            "method": "POST",
-            "description": "Registra um sensor fictício associado ao ambiente criado acima. Serviço/caminho FIWARE são valores de demonstração.",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/api/devices",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Sensor Demo {{$guid}}\",\n  \"fiwareId\": \"wineguard-demo-{{$guid}}\",\n  \"fiwareType\": \"WineSensor002\",\n  \"fiwareService\": \"vinheria\",\n  \"fiwareServicePath\": \"/\",\n  \"environmentId\": {{environmentId}}\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-                  "const created = pm.response.json();",
-                  "if (created.id) pm.collectionVariables.set(\"deviceId\", String(created.id));",
-                  "pm.test(\"Resposta contém ID do dispositivo\", function () { pm.expect(created.id).to.exist; });"
+                  "pm.test(\"Lista de ambientes\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
                 ]
               }
             }
@@ -169,8 +314,13 @@
           "name": "Listar dispositivos",
           "request": {
             "method": "GET",
-            "description": "Lista sensores cadastrados e os ambientes associados.",
-            "header": [],
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/devices"
           },
           "response": [],
@@ -181,7 +331,202 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                  "pm.test(\"Lista inclui contrato MQTT\", function () { const d=pm.response.json(); pm.expect(d).to.be.an(\"array\"); d.forEach(x => pm.expect(x).to.have.property(\"mqttDeviceId\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar limites cadastrados",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Lista de limites\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leitura atual Orion",
+          "request": {
+            "method": "GET",
+            "description": "Utilize um dispositivo real provisionado. HTTP 502 falha este teste; não é evidência de leitura real.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/current"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Leitura contém ID FIWARE\", function () { pm.expect(pm.response.json().id).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Histórico de temperatura STH",
+          "request": {
+            "method": "GET",
+            "description": "Sem datas configuradas, usa as últimas 24 horas. Retorna a primeira página de até 20 pontos; não garante os mais recentes. Resposta 200 com série vazia não comprova existência de medições.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/history/TEMPERATURE?dateFrom={{dateFrom}}&dateTo={{dateTo}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "const from=pm.variables.get(\"dateFrom\"), to=pm.variables.get(\"dateTo\");",
+                  "if (!from && !to) { const end=new Date(); pm.variables.set(\"dateTo\",end.toISOString()); pm.variables.set(\"dateFrom\",new Date(end.getTime()-86400000).toISOString()); }",
+                  "else if (!from || !to || !Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(to)) || Date.parse(from)>=Date.parse(to)) skip(\"Histórico ignorado: informe um intervalo válido completo.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Contrato STH\", function () { pm.expect(pm.response.json().contextResponses).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Configuração mais recente e reconciliação",
+          "request": {
+            "method": "GET",
+            "description": "200 retorna estado registrado. 404 é aceito apenas como ausência de recurso e mostrado como teste ignorado, não como aplicação validada. APPLIED depende da revisão e de todos os valores da telemetria. Não há polling ou reenvio automático nesta coleção.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 404) {",
+                  "  pm.test(\"HTTP 404 sinaliza recurso ausente\", function () { pm.response.to.have.status(404); });",
+                  "  pm.test.skip(\"Configuração existente: verifique se deviceId é válido e se há registro\", function () {});",
+                  "} else {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"Estado de configuração reconhecido\", function () { pm.expect([\"PENDING\",\"APPLIED\",\"REJECTED\",\"UNCONFIRMED\"]).to.include(pm.response.json().status); });",
+                  "  pm.test(\"Configuração pertence ao dispositivo escolhido\", function () { pm.expect(String(pm.response.json().deviceId)).to.eql(String(pm.variables.get(\"deviceId\"))); });",
+                  "  if (pm.response.code===200 && pm.response.json().status === \"APPLIED\") {",
+                  "    pm.test(\"Aplicação tem confirmação registrada\", function () { pm.expect(pm.response.json().confirmedAt).to.be.a(\"string\"); });",
+                  "  } else { pm.test.skip(\"Aplicação pelo ESP ainda não confirmada\", function () {}); }",
+                  "}"
                 ]
               }
             }
@@ -190,23 +535,28 @@
       ]
     },
     {
-      "name": "4 - Limites ambientais",
+      "name": "03 - Cadastros demonstrativos (opcional)",
+      "description": "Somente com allowCatalogWrites=true. Cria registros fictícios; não provisiona nem envia ao ESP. IDs criados ficam em variáveis locais do Runner. Não altera deviceId real. Não repita a pasta sem considerar os registros deixados no banco.",
       "item": [
         {
-          "name": "Criar ou atualizar limite de temperatura",
+          "name": "Criar ambiente demonstrativo",
           "request": {
-            "method": "PUT",
-            "description": "Grava um limite ilustrativo no PostgreSQL. Ajuste os números à faixa definida pela equipe antes de qualquer uso operacional.",
+            "method": "POST",
+            "description": "",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits",
+            "url": "{{baseUrl}}/api/environments",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"metric\": \"TEMPERATURE\",\n  \"minimumValue\": 10.0,\n  \"maximumValue\": 18.0,\n  \"unit\": \"°C\"\n}",
+              "raw": "{\n  \"name\": \"Adega Demo {{demoSuffix}}\",\n  \"description\": \"Cadastro fictício criado pela coleção Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -217,85 +567,39 @@
           "response": [],
           "event": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Limite retornado pertence ao sensor da demonstração\", function () { pm.expect(String(pm.response.json().deviceId)).to.eql(pm.collectionVariables.get(\"deviceId\")); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Consultar limites do sensor",
-          "request": {
-            "method": "GET",
-            "description": "Confere os limites associados ao sensor.",
-            "header": [],
-            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-                  "pm.test(\"Resposta é uma lista\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "5 - Leituras FIWARE",
-      "item": [
-        {
-          "name": "Consultar leitura atual no Orion",
-          "request": {
-            "method": "GET",
-            "description": "Busca atributos atuais no Orion. Retorno 502 indica que o Orion configurado não está acessível nesta execução.",
-            "header": [],
-            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/current"
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Orion respondeu ou a indisponibilidade foi tratada\", function () { pm.expect([200, 502]).to.include(pm.response.code); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Consultar histórico no STH-Comet",
-          "request": {
-            "method": "GET",
-            "description": "Busca histórico de temperatura no STH-Comet. Retorno 502 indica que o serviço não está acessível nesta execução.",
-            "header": [],
-            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/history/TEMPERATURE?dateFrom={{dateFrom}}&dateTo={{dateTo}}"
-          },
-          "response": [],
-          "event": [
-            {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Usa as últimas 24 horas para que a faixa de demonstração não envelheça.",
-                  "const end = new Date();",
-                  "const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);",
-                  "pm.collectionVariables.set(\"dateFrom\", start.toISOString());",
-                  "pm.collectionVariables.set(\"dateTo\", end.toISOString());"
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "",
+                  "if (permitted) {",
+                  "pm.variables.unset(\"demoEnvironmentId\"); pm.variables.unset(\"demoDeviceId\"); pm.variables.set(\"demoSuffix\",pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
                 ]
               }
             },
@@ -304,7 +608,564 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"STH-Comet respondeu ou a indisponibilidade foi tratada\", function () { pm.expect([200, 502]).to.include(pm.response.code); });"
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if(pm.response.code===201) { const d=pm.response.json(); pm.variables.set(\"demoEnvironmentId\",String(d.id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar dispositivo demonstrativo",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sensor Demo {{demoSuffix}}\",\n  \"fiwareId\": \"WineGuardDemo-{{demoSuffix}}\",\n  \"mqttDeviceId\": \"wg-demo-{{demoSuffix}}\",\n  \"fiwareType\": \"WineSensor\",\n  \"fiwareService\": \"vinheria\",\n  \"fiwareServicePath\": \"/\",\n  \"environmentId\": {{demoEnvironmentId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"demoEnvironmentId\") || \"\"))) skip(\"Ignorada: configure demoEnvironmentId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "pm.variables.unset(\"demoDeviceId\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if(pm.response.code===201) { const d=pm.response.json(); pm.variables.set(\"demoDeviceId\",String(d.id)); pm.test(\"ID MQTT retornado\",function(){pm.expect(d.mqttDeviceId).to.eql(\"wg-demo-\"+pm.variables.get(\"demoSuffix\"));}); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gravar limite somente no cadastro demonstrativo",
+          "request": {
+            "method": "PUT",
+            "description": "Não altera limites locais do ESP. Valores apenas ilustrativos.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{demoDeviceId}}/limits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metric\": \"TEMPERATURE\",\n  \"minimumValue\": 15,\n  \"maximumValue\": 29,\n  \"unit\": \"°C\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"demoDeviceId\") || \"\"))) skip(\"Ignorada: configure demoDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Limite pertence ao cadastro demonstrativo\",function(){pm.expect(String(pm.response.json().deviceId)).to.eql(String(pm.variables.get(\"demoDeviceId\")));});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Provisionamento (execução individual)",
+      "description": "Selecione somente esta requisição com allowProvision=true e operationDeviceId escolhido. Cadastro prévio necessário. Não configura usuário/senha/ACL MQTT. Não provisiona automaticamente o dispositivo principal.",
+      "item": [
+        {
+          "name": "Provisionar dispositivo escolhido",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}/provision"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowProvision\")) !== \"true\") skip(\"Ignorada: habilite allowProvision somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Provisionamento declarado\",function(){pm.expect(pm.response.json().status).to.eql(\"provisioned\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Alerta físico (execução individual)",
+      "description": "Somente com allowAlert=true e operationDeviceId escolhido. Pode acionar atuadores. normal encerra apenas alertas remotos. HTTP 202 não comprova execução física.",
+      "item": [
+        {
+          "name": "Enviar comando de alerta",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}/commands/alert",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"{{alertCommand}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowAlert\")) !== \"true\") skip(\"Ignorada: habilite allowAlert somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "if (![\"normal\",\"temperature\",\"humidity\",\"luminosity\"].includes(String(pm.variables.get(\"alertCommand\")))) skip(\"Comando de alerta inválido.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "pm.test(\"Comando aceito para envio\",function(){pm.expect(pm.response.json().status).to.eql(\"accepted\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Configuração do ESP (execução individual)",
+      "description": "Somente com allowConfiguration=true e deviceId real escolhido. Ajuste o corpo antes de enviar. Não repita após timeout/502: consulte GET configuration. Novos envios ficam bloqueados enquanto houver resultado indefinido. Não existe endpoint de reenvio da mesma revisão.",
+      "item": [
+        {
+          "name": "Enviar configuração completa de bancada",
+          "request": {
+            "method": "POST",
+            "description": "Os cinco limites são obrigatórios. Até uma casa decimal para temperatura/umidade. Intervalos >2 °C e >6 pontos percentuais. Luz inteira 200..4095 ADC. Não são limites operacionais aprovados para vinhos.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperatureMin\": 15,\n  \"temperatureMax\": 29,\n  \"humidityMin\": 40,\n  \"humidityMax\": 82,\n  \"luminosityMax\": 3500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowConfiguration\")) !== \"true\") skip(\"Ignorada: habilite allowConfiguration somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if(pm.response.code===202) { const d=pm.response.json(); pm.test(\"Envio registrado, ainda não confirmado\",function(){pm.expect(d.status).to.eql(\"PENDING\"); pm.expect(d.confirmedAt).to.eql(null); pm.expect(d.revision).to.be.above(0);}); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - Remoção (execução individual)",
+      "description": "Somente com allowRemoval=true e confirmRemovalDeviceId igual a operationDeviceId. Escolha um dispositivo descartável. Remove cadastro/limites/configurações locais e registros IoT Agent/Orion; não apaga histórico STH nem revoga credenciais MQTT. Não há reversão distribuída.",
+      "item": [
+        {
+          "name": "Remover dispositivo explicitamente escolhido",
+          "request": {
+            "method": "DELETE",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowRemoval\")) !== \"true\") skip(\"Ignorada: habilite allowRemoval somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "if (String(pm.variables.get(\"confirmRemovalDeviceId\")) !== String(pm.variables.get(\"operationDeviceId\"))) skip(\"Remoção ignorada: confirme o mesmo ID em confirmRemovalDeviceId.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "pm.test(\"Resposta sem corpo\",function(){pm.expect(pm.response.text()).to.eql(\"\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 - Encerrar sessão",
+      "description": "Execute ao concluir. Busca token CSRF atual, encerra a sessão e verifica 401. Rodar a coleção inteira também encerra a sessão ao final.",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Sessão encerrada\",function(){pm.expect(pm.response.json().status).to.eql(\"logged_out\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar sessão encerrada",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
                 ]
               }
             }
