@@ -27,6 +27,8 @@ public class SecurityConfiguration {
                 .requestMatchers(HttpMethod.GET,
                     "/api/auth/csrf", "/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers(
+                    "/api/admin", "/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .requestCache(cache -> cache.disable())

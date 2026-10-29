@@ -1,7 +1,7 @@
 package br.com.vinhariaagnello.wineguard.controller;
 
-import java.security.Principal;
 import java.util.Map;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -24,9 +24,17 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> me(Principal principal) {
+    public ResponseEntity<Map<String, String>> me(
+            Authentication authentication) {
+
+        boolean admin = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        "ROLE_ADMIN".equals(authority.getAuthority()));
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(Map.of("username", principal.getName()));
+                .body(Map.of(
+                        "username", authentication.getName(),
+                        "role", admin ? "ADMIN" : "USER"));
     }
 }

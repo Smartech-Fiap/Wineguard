@@ -21,6 +21,7 @@ public class ConfigurationAttemptService {
 
     private final DeviceRepository devices;
     private final DeviceConfigurationRepository configurations;
+    private final DeviceAccessService access;
 
     public record Attempt(
             ConfigurationResponse configuration,
@@ -38,6 +39,7 @@ public class ConfigurationAttemptService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Dispositivo não encontrado."));
+        access.requireAccess(device);
 
         if (!device.isActive()) {
             throw new IllegalArgumentException(

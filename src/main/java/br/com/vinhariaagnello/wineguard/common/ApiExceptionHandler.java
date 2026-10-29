@@ -3,6 +3,7 @@ package br.com.vinhariaagnello.wineguard.common;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +15,14 @@ import org.springframework.web.client.RestClientException;
 /** Converte falhas conhecidas em respostas HTTP curtas e consistentes. */
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    /** Mantém falhas de autenticação dos serviços como HTTP 401. */
+    @ExceptionHandler(AuthenticationException.class)
+    ProblemDetail handleAuthentication(AuthenticationException exception) {
+        return problem(
+                HttpStatus.UNAUTHORIZED,
+                "Autenticação necessária.");
+    }
 
     /** Responde 404 quando um ambiente ou dispositivo solicitado não existe. */
     @ExceptionHandler(ResourceNotFoundException.class)

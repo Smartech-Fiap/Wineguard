@@ -42,7 +42,9 @@ class ConfigurationAttemptServiceTest {
                 .thenReturn(Optional.of(configuration));
 
         service = new ConfigurationAttemptService(
-                devices, configurations);
+                devices,
+                configurations,
+                mock(DeviceAccessService.class));
     }
 
     private DeviceConfiguration configuration(Long revision) {

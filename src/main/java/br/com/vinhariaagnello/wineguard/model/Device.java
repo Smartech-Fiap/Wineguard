@@ -66,6 +66,10 @@ public class Device {
     /** Cada dispositivo fica associado a exatamente um ambiente cadastrado. */
     private Environment environment;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private AppUser owner;
+
     /** Construtor de cadastro usado pelo serviço após validar o ambiente. */
      public Device(
             String name,
@@ -83,6 +87,21 @@ public class Device {
         this.fiwareService = fiwareService;
         this.fiwareServicePath = fiwareServicePath;
         this.environment = environment;
+    }
+
+    /** Atribui o proprietário no cadastro; não permite transferências. */
+    public void assignOwner(AppUser owner) {
+        if (owner == null || owner.getId() == null) {
+            throw new IllegalArgumentException(
+                    "O proprietário deve ser um usuário cadastrado.");
+        }
+
+        if (this.owner != null) {
+            throw new IllegalStateException(
+                    "O dispositivo já possui proprietário.");
+        }
+
+        this.owner = owner;
     }
 
 }

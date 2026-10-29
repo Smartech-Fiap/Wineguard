@@ -29,6 +29,7 @@ public class ConfigurationRegistrationService {
 
     private final DeviceRepository devices;
     private final DeviceConfigurationRepository configurations;
+    private final DeviceAccessService access;
 
     @Transactional
     public ConfigurationResponse register(
@@ -39,6 +40,7 @@ public class ConfigurationRegistrationService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Dispositivo não encontrado."));
+        access.requireAccess(device);
 
         if (!device.isActive()) {
             throw new IllegalArgumentException(

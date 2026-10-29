@@ -2,7 +2,8 @@ package br.com.vinhariaagnello.wineguard.service;
 
 import br.com.vinhariaagnello.wineguard.common.ConflictException;
 import br.com.vinhariaagnello.wineguard.common.ResourceNotFoundException;
-
+import br.com.vinhariaagnello.wineguard.enums.AppUserRole;
+import br.com.vinhariaagnello.wineguard.model.AppUser;
 import br.com.vinhariaagnello.wineguard.model.Device;
 import br.com.vinhariaagnello.wineguard.model.DeviceLimit;
 import br.com.vinhariaagnello.wineguard.dto.DeviceDtos;
@@ -22,21 +23,38 @@ public class DeviceService {
     private final DeviceRepository devices;
     private final DeviceLimitRepository limits;
     private final EnvironmentService environments;
+    private final CurrentUserService currentUser;
+    private final DeviceAccessService access;
 
     @Transactional(readOnly = true)
     /** Lista dispositivos para alimentar o painel sem expor entidades JPA. */
     public List<DeviceDtos.Response> findAll() {
-        return devices.findAll().stream().map(DeviceDtos.Response::from).toList();
+        AppUser user = currentUser.require();
+
+        List<Device> visible = user.getRole() == AppUserRole.ADMIN
+                ? devices.findAll()
+                : devices.findAllByOwner_IdOrderByIdAsc(user.getId());
+
+        return visible.stream()
+                .map(DeviceDtos.Response::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     /** Localiza um dispositivo ou interrompe o fluxo com erro 404. */
     public Device require(Long id) {
-        return devices.findById(id).orElseThrow(() -> new ResourceNotFoundException("Dispositivo não encontrado."));
+        Device device = devices.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Dispositivo não encontrado."));
+
+        access.requireAccess(device);
+        return device;
     }
 
     /** Valida unicidade FIWARE, associa o ambiente e persiste o sensor. */
     public DeviceDtos.Response create(DeviceDtos.CreateRequest request) {
+        AppUser owner = currentUser.require();
         if (devices.existsByFiwareServiceAndFiwareServicePathAndFiwareId(
                 request.fiwareService(), request.fiwareServicePath(), request.fiwareId())) {
             throw new ConflictException("O dispositivo FIWARE já está cadastrado.");
@@ -59,6 +77,7 @@ public class DeviceService {
                 request.fiwareServicePath(),
                 environments.require(request.environmentId())
         );
+        device.assignOwner(owner);
         return DeviceDtos.Response.from(devices.save(device));
     }
 
