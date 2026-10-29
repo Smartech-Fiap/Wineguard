@@ -1,0 +1,1571 @@
+{
+  "info": {
+    "name": "WineGuard API — sessão e integração atual",
+    "description": "Contrato atual do backend Java. Use Postman Desktop atualizado e cookie jar habilitado. Configure um ambiente local; não exporte credenciais/cookies. Execute primeiro a pasta 01. As consultas precisam de deviceId real. Escritas ficam ignoradas enquanto suas flags forem false. Não execute a coleção inteira com flags habilitadas: escolha uma pasta/requisição. Nenhum teste considera 502 como sucesso de leitura ou 202 como aplicação física. Veja README-postman.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080",
+      "type": "string"
+    },
+    {
+      "key": "healthUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "environmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoEnvironmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "operationDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "confirmRemovalDeviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "alertCommand",
+      "value": "normal",
+      "type": "string"
+    },
+    {
+      "key": "allowCatalogWrites",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowProvision",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowAlert",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowConfiguration",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "allowRemoval",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "dateFrom",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dateTo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "allowConfigurationRetry",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "retryRevision",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Autenticação",
+      "description": "Execute esta pasta primeiro. Reexecute após expiração ou reinício do Java. Cookie jar habilitado; o login não utiliza Basic/Bearer.",
+      "item": [
+        {
+          "name": "01 - Obter CSRF",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/csrf"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Contrato CSRF\", function () { const d=pm.response.json(); pm.expect(d.headerName).to.be.a(\"string\"); pm.expect(d.token).to.be.a(\"string\"); pm.expect(d.token.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Login (credenciais no ambiente local)",
+          "request": {
+            "method": "POST",
+            "description": "Envia usuário e senha locais. O cookie de sessão fica no cookie jar do Postman. Não salve credenciais na coleção. O pré-script busca CSRF antes do login; as escritas seguintes também buscam um token atual.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "if (!pm.variables.get(\"username\") || !pm.variables.get(\"password\")) skip(\"Login ignorado: configure username e password no ambiente local, sem versioná-los.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Login autenticado\", function () { pm.expect(pm.response.json().status).to.eql(\"authenticated\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Usuário autenticado",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Usuário informado\", function () { pm.expect(pm.response.json().username).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Consultas",
+      "description": "Não altera cadastros ou limites. O GET configuration pode atualizar o estado da configuração no banco ao reconciliar a telemetria.",
+      "item": [
+        {
+          "name": "Saúde Java (URL opcional)",
+          "request": {
+            "method": "GET",
+            "description": "A saúde não está necessariamente publicada pelo Nginx. Configure healthUrl somente quando houver um endpoint alcançável; vazio ignora esta requisição.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{healthUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "const health=String(pm.variables.get(\"healthUrl\") || \"\"); if (!health.startsWith(\"http://\") && !health.startsWith(\"https://\")) skip(\"Saúde ignorada: configure healthUrl se houver rota disponível.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Saúde UP\", function () { pm.expect(pm.response.json().status).to.eql(\"UP\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar ambientes",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/environments"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Lista de ambientes\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar dispositivos",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Lista inclui contrato MQTT\", function () { const d=pm.response.json(); pm.expect(d).to.be.an(\"array\"); d.forEach(x => pm.expect(x).to.have.property(\"mqttDeviceId\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar limites cadastrados",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/limits"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Lista de limites\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leitura atual Orion",
+          "request": {
+            "method": "GET",
+            "description": "Utilize um dispositivo real provisionado. HTTP 502 falha este teste; não é evidência de leitura real.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/current"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Leitura contém ID FIWARE\", function () { pm.expect(pm.response.json().id).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Histórico de temperatura STH",
+          "request": {
+            "method": "GET",
+            "description": "Sem datas configuradas, usa as últimas 24 horas. Retorna a primeira página de até 20 pontos; não garante os mais recentes. Resposta 200 com série vazia não comprova existência de medições.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/readings/history/TEMPERATURE?dateFrom={{dateFrom}}&dateTo={{dateTo}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "const from=pm.variables.get(\"dateFrom\"), to=pm.variables.get(\"dateTo\");",
+                  "if (!from && !to) { const end=new Date(); pm.variables.set(\"dateTo\",end.toISOString()); pm.variables.set(\"dateFrom\",new Date(end.getTime()-86400000).toISOString()); }",
+                  "else if (!from || !to || !Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(to)) || Date.parse(from)>=Date.parse(to)) skip(\"Histórico ignorado: informe um intervalo válido completo.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Contrato STH\", function () { pm.expect(pm.response.json().contextResponses).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Configuração mais recente e reconciliação",
+          "request": {
+            "method": "GET",
+            "description": "200 retorna estado registrado. 404 é aceito apenas como ausência de recurso e mostrado como teste ignorado, não como aplicação validada. APPLIED depende da revisão e de todos os valores da telemetria. Não há polling ou reenvio automático nesta coleção.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 404) {",
+                  "  pm.test(\"HTTP 404 sinaliza recurso ausente\", function () { pm.response.to.have.status(404); });",
+                  "  pm.test.skip(\"Configuração existente: verifique se deviceId é válido e se há registro\", function () {});",
+                  "} else {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"Estado de configuração reconhecido\", function () { pm.expect([\"PENDING\",\"APPLIED\",\"REJECTED\",\"UNCONFIRMED\"]).to.include(pm.response.json().status); });",
+                  "  pm.test(\"Configuração pertence ao dispositivo escolhido\", function () { pm.expect(String(pm.response.json().deviceId)).to.eql(String(pm.variables.get(\"deviceId\"))); });",
+                  "  if (pm.response.code===200 && pm.response.json().status === \"APPLIED\") {",
+                  "    pm.test(\"Aplicação tem confirmação registrada\", function () { pm.expect(pm.response.json().confirmedAt).to.be.a(\"string\"); });",
+                  "  } else { pm.test.skip(\"Aplicação pelo ESP ainda não confirmada\", function () {}); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Cadastros demonstrativos (opcional)",
+      "description": "Somente com allowCatalogWrites=true. Cria registros fictícios; não provisiona nem envia ao ESP. IDs criados ficam em variáveis locais do Runner. Não altera deviceId real. Não repita a pasta sem considerar os registros deixados no banco.",
+      "item": [
+        {
+          "name": "Criar ambiente demonstrativo",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/environments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Adega Demo {{demoSuffix}}\",\n  \"description\": \"Cadastro fictício criado pela coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "",
+                  "if (permitted) {",
+                  "pm.variables.unset(\"demoEnvironmentId\"); pm.variables.unset(\"demoDeviceId\"); pm.variables.set(\"demoSuffix\",pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if(pm.response.code===201) { const d=pm.response.json(); pm.variables.set(\"demoEnvironmentId\",String(d.id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar dispositivo demonstrativo",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sensor Demo {{demoSuffix}}\",\n  \"fiwareId\": \"WineGuardDemo-{{demoSuffix}}\",\n  \"mqttDeviceId\": \"wg-demo-{{demoSuffix}}\",\n  \"fiwareType\": \"WineSensor\",\n  \"fiwareService\": \"vinheria\",\n  \"fiwareServicePath\": \"/\",\n  \"environmentId\": {{demoEnvironmentId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"demoEnvironmentId\") || \"\"))) skip(\"Ignorada: configure demoEnvironmentId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "pm.variables.unset(\"demoDeviceId\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if(pm.response.code===201) { const d=pm.response.json(); pm.variables.set(\"demoDeviceId\",String(d.id)); pm.test(\"ID MQTT retornado\",function(){pm.expect(d.mqttDeviceId).to.eql(\"wg-demo-\"+pm.variables.get(\"demoSuffix\"));}); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gravar limite somente no cadastro demonstrativo",
+          "request": {
+            "method": "PUT",
+            "description": "Não altera limites locais do ESP. Valores apenas ilustrativos.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{demoDeviceId}}/limits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metric\": \"TEMPERATURE\",\n  \"minimumValue\": 15,\n  \"maximumValue\": 29,\n  \"unit\": \"°C\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowCatalogWrites\")) !== \"true\") skip(\"Ignorada: habilite allowCatalogWrites somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"demoDeviceId\") || \"\"))) skip(\"Ignorada: configure demoDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Limite pertence ao cadastro demonstrativo\",function(){pm.expect(String(pm.response.json().deviceId)).to.eql(String(pm.variables.get(\"demoDeviceId\")));});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Provisionamento (execução individual)",
+      "description": "Selecione somente esta requisição com allowProvision=true e operationDeviceId escolhido. Cadastro prévio necessário. Não configura usuário/senha/ACL MQTT. Não provisiona automaticamente o dispositivo principal.",
+      "item": [
+        {
+          "name": "Provisionar dispositivo escolhido",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}/provision"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowProvision\")) !== \"true\") skip(\"Ignorada: habilite allowProvision somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Provisionamento declarado\",function(){pm.expect(pm.response.json().status).to.eql(\"provisioned\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Alerta físico (execução individual)",
+      "description": "Somente com allowAlert=true e operationDeviceId escolhido. Pode acionar atuadores. normal encerra apenas alertas remotos. HTTP 202 não comprova execução física.",
+      "item": [
+        {
+          "name": "Enviar comando de alerta",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}/commands/alert",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"{{alertCommand}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowAlert\")) !== \"true\") skip(\"Ignorada: habilite allowAlert somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "if (![\"normal\",\"temperature\",\"humidity\",\"luminosity\"].includes(String(pm.variables.get(\"alertCommand\")))) skip(\"Comando de alerta inválido.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "pm.test(\"Comando aceito para envio\",function(){pm.expect(pm.response.json().status).to.eql(\"accepted\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Configuração do ESP (execução individual)",
+      "description": "Somente com allowConfiguration=true e deviceId real escolhido. Ajuste o corpo antes de enviar. Não repita após timeout/502: consulte GET configuration. Novos envios ficam bloqueados enquanto houver resultado indefinido. Não existe endpoint de reenvio da mesma revisão.",
+      "item": [
+        {
+          "name": "Enviar configuração completa de bancada",
+          "request": {
+            "method": "POST",
+            "description": "Os cinco limites são obrigatórios. Até uma casa decimal para temperatura/umidade. Intervalos >2 °C e >6 pontos percentuais. Luz inteira 200..4095 ADC. Não são limites operacionais aprovados para vinhos.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperatureMin\": 15,\n  \"temperatureMax\": 29,\n  \"humidityMin\": 40,\n  \"humidityMax\": 82,\n  \"luminosityMax\": 3500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowConfiguration\")) !== \"true\") skip(\"Ignorada: habilite allowConfiguration somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if(pm.response.code===202) { const d=pm.response.json(); pm.test(\"Envio registrado, ainda não confirmado\",function(){pm.expect(d.status).to.eql(\"PENDING\"); pm.expect(d.confirmedAt).to.eql(null); pm.expect(d.revision).to.be.above(0);}); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reenviar a mesma revisão sem confirmação",
+          "request": {
+            "method": "POST",
+            "description": "Execução individual com allowConfigurationRetry=true. Informe deviceId e retryRevision após consultar o estado. Não recebe corpo nem cria nova revisão. 200 significa já aplicada, sem envio; 202 significa reenviada, aguardando confirmação. Não repetir automaticamente após erro.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{deviceId}}/configuration/{{retryRevision}}/retry"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowConfigurationRetry\")) !== \"true\") skip(\"Ignorada: habilite allowConfigurationRetry somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"deviceId\") || \"\"))) skip(\"Ignorada: configure deviceId com um ID numérico válido.\");",
+                  "",
+                  "const revision = String(pm.variables.get(\"retryRevision\") || \"\");",
+                  "if (permitted && (",
+                  "    !/^[1-9][0-9]{0,9}$/.test(revision) ||",
+                  "    Number(revision) > 4294967295",
+                  ")) {",
+                  "    skip(\"Reenvio ignorado: configure retryRevision com uma revisão válida.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200 ou 202\", function () {",
+                  "    pm.expect([200, 202]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200 || pm.response.code === 202) {",
+                  "    const data = pm.response.json();",
+                  "",
+                  "    pm.test(\"Preserva dispositivo e revisão escolhidos\", function () {",
+                  "        pm.expect(String(data.deviceId))",
+                  "            .to.eql(String(pm.variables.get(\"deviceId\")));",
+                  "        pm.expect(String(data.revision))",
+                  "            .to.eql(String(pm.variables.get(\"retryRevision\")));",
+                  "    });",
+                  "",
+                  "    if (pm.response.code === 200) {",
+                  "        pm.test(\"Já aplicada, sem novo envio\", function () {",
+                  "            pm.expect(data.status).to.eql(\"APPLIED\");",
+                  "            pm.expect(data.confirmedAt).to.be.a(\"string\");",
+                  "        });",
+                  "    } else {",
+                  "        pm.test(\"Reenvio aceito, ainda sem confirmação\", function () {",
+                  "            pm.expect(data.status).to.eql(\"PENDING\");",
+                  "            pm.expect(data.confirmedAt).to.eql(null);",
+                  "        });",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - Remoção (execução individual)",
+      "description": "Somente com allowRemoval=true e confirmRemovalDeviceId igual a operationDeviceId. Escolha um dispositivo descartável. Remove cadastro/limites/configurações locais e registros IoT Agent/Orion; não apaga histórico STH nem revoga credenciais MQTT. Não há reversão distribuída.",
+      "item": [
+        {
+          "name": "Remover dispositivo explicitamente escolhido",
+          "request": {
+            "method": "DELETE",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/devices/{{operationDeviceId}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowRemoval\")) !== \"true\") skip(\"Ignorada: habilite allowRemoval somente para a operação escolhida.\");",
+                  "if (permitted && !/^[1-9][0-9]*$/.test(String(pm.variables.get(\"operationDeviceId\") || \"\"))) skip(\"Ignorada: configure operationDeviceId com um ID numérico válido.\");",
+                  "if (permitted) {",
+                  "if (String(pm.variables.get(\"confirmRemovalDeviceId\")) !== String(pm.variables.get(\"operationDeviceId\"))) skip(\"Remoção ignorada: confirme o mesmo ID em confirmRemovalDeviceId.\");",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "pm.test(\"Resposta sem corpo\",function(){pm.expect(pm.response.text()).to.eql(\"\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07B - Usuários e mapa",
+      "description": "Consultas autenticadas. ADMIN lista contas; USER recebe 403. Ambos consultam o mapa sem dados dos sensores.",
+      "item": [
+        {
+          "name": "Listar usuários conforme o perfil",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.unset(\"checkedUserRole\");",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/me\"),",
+                  "  method: \"GET\",",
+                  "  header: {Accept: \"application/json\"}",
+                  "}, function(error, response) {",
+                  "  let role;",
+                  "  try {",
+                  "    if (error || !response || response.code !== 200) throw new Error();",
+                  "    role = response.json().role;",
+                  "    if (![\"ADMIN\", \"USER\"].includes(role)) throw new Error();",
+                  "    pm.variables.set(\"checkedUserRole\", role);",
+                  "  } catch (_) {",
+                  "    pm.test(\"Sessão válida antes da consulta administrativa\", function() {",
+                  "      throw new Error(\"Autentique-se antes de executar esta requisição.\");",
+                  "    });",
+                  "    pm.execution.skipRequest();",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const role = pm.variables.get(\"checkedUserRole\");",
+                  "pm.test(\"Permissão administrativa conforme o perfil\", function() {",
+                  "  pm.expect([\"ADMIN\", \"USER\"]).to.include(role);",
+                  "  pm.response.to.have.status(role === \"ADMIN\" ? 200 : 403);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Contas sem senha ou hash\", function() {",
+                  "    const accounts = pm.response.json();",
+                  "    pm.expect(accounts).to.be.an(\"array\");",
+                  "    accounts.forEach(function(account) {",
+                  "      pm.expect(account).to.have.property(\"username\");",
+                  "      pm.expect([\"ADMIN\", \"USER\"]).to.include(account.role);",
+                  "      pm.expect(account).not.to.have.property(\"password\");",
+                  "      pm.expect(account).not.to.have.property(\"passwordHash\");",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar mapa compartilhado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/wineries"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mapa acessível com sessão\", function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Somente campos de localização\", function() {",
+                  "    const points = pm.response.json();",
+                  "    pm.expect(points).to.be.an(\"array\");",
+                  "    points.forEach(function(point) {",
+                  "      pm.expect(point).to.have.all.keys(",
+                  "        \"id\", \"wineryName\", \"city\", \"region\", \"country\",",
+                  "        \"latitude\", \"longitude\"",
+                  "      );",
+                  "      pm.expect(point.id).to.be.a(\"number\").above(0);",
+                  "      [\"wineryName\", \"city\", \"region\", \"country\"].forEach(function(key) {",
+                  "        pm.expect(point[key]).to.be.a(\"string\");",
+                  "        pm.expect(point[key].trim()).not.to.equal(\"\");",
+                  "      });",
+                  "      pm.expect(point.latitude).to.be.a(\"number\").within(-90, 90);",
+                  "      pm.expect(point.longitude).to.be.a(\"number\").within(-180, 180);",
+                  "    });",
+                  "  });",
+                  "  pm.test(\"Localizações sem cache\", function() {",
+                  "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar usuário com localização (execução individual)",
+          "request": {
+            "method": "POST",
+            "description": "Somente ADMIN. Cria uma conta USER real no banco. Exige allowUserCreation=true e todas as variáveis newUser*. Não repetir automaticamente após erro ou timeout; consultar a lista.",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "if (String(pm.variables.get(\"allowUserCreation\")) !== \"true\") skip(\"Ignorada: habilite allowUserCreation somente para a operação escolhida.\");",
+                  "",
+                  "if (permitted) {",
+                  "}",
+                  "",
+                  "pm.variables.unset(\"createdUserId\");",
+                  "const input = {};",
+                  "const fields = {",
+                  "  username: \"newUserUsername\",",
+                  "  password: \"newUserPassword\",",
+                  "  wineryName: \"newUserWineryName\",",
+                  "  city: \"newUserCity\",",
+                  "  region: \"newUserRegion\",",
+                  "  country: \"newUserCountry\",",
+                  "  latitude: \"newUserLatitude\",",
+                  "  longitude: \"newUserLongitude\"",
+                  "};",
+                  "for (const [key, variable] of Object.entries(fields)) {",
+                  "  const value = pm.variables.get(variable);",
+                  "  if (value === undefined || value === null || !String(value).trim()) {",
+                  "    skip(\"Ignorada: preencha \" + variable + \" no ambiente local.\");",
+                  "  } else {",
+                  "    input[key] = String(value);",
+                  "  }",
+                  "}",
+                  "if (permitted) {",
+                  "  input.username = input.username.trim();",
+                  "  if (!/^[A-Za-z0-9._-]{3,100}$/.test(input.username)) {",
+                  "    skip(\"Ignorada: nome de usuário inválido.\");",
+                  "  }",
+                  "  const bytes = Array.from(input.password).reduce(function(total, char) {",
+                  "    const code = char.codePointAt(0);",
+                  "    return total + (code <= 127 ? 1 : code <= 2047 ? 2 : code <= 65535 ? 3 : 4);",
+                  "  }, 0);",
+                  "  if (input.password.length < 12 || bytes > 72) {",
+                  "    skip(\"Ignorada: senha deve ter pelo menos 12 caracteres e até 72 bytes.\");",
+                  "  }",
+                  "  for (const key of [\"wineryName\", \"city\", \"region\", \"country\"]) {",
+                  "    input[key] = input[key].trim();",
+                  "    if (input[key].length > (key === \"wineryName\" ? 150 : 100)) {",
+                  "      skip(\"Ignorada: campo de localização acima do limite.\");",
+                  "    }",
+                  "  }",
+                  "  for (const key of [\"latitude\", \"longitude\"]) {",
+                  "    const value = Number(input[key]);",
+                  "    const maximum = key === \"latitude\" ? 90 : 180;",
+                  "    if (!Number.isFinite(value) || Math.abs(value) > maximum ||",
+                  "        Number(value.toFixed(6)) !== value) {",
+                  "      skip(\"Ignorada: coordenadas inválidas ou com mais de seis casas decimais.\");",
+                  "    }",
+                  "    input[key] = value;",
+                  "  }",
+                  "}",
+                  "if (permitted) {",
+                  "  pm.request.body.update(JSON.stringify({",
+                  "    username: input.username,",
+                  "    password: input.password,",
+                  "    location: {",
+                  "      wineryName: input.wineryName,",
+                  "      city: input.city,",
+                  "      region: input.region,",
+                  "      country: input.country,",
+                  "      latitude: input.latitude,",
+                  "      longitude: input.longitude",
+                  "    }",
+                  "  }));",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Conta criada com HTTP 201\", function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const account = pm.response.json();",
+                  "  pm.test(\"Conta USER sem senha ou hash na resposta\", function() {",
+                  "    pm.expect(account.role).to.equal(\"USER\");",
+                  "    pm.expect(account.enabled).to.equal(true);",
+                  "    pm.expect(account.username).to.equal(",
+                  "      String(pm.variables.get(\"newUserUsername\")).trim()",
+                  "    );",
+                  "    pm.expect(account).not.to.have.property(\"password\");",
+                  "    pm.expect(account).not.to.have.property(\"passwordHash\");",
+                  "    pm.expect(account.location.wineryName).to.equal(",
+                  "      String(pm.variables.get(\"newUserWineryName\")).trim()",
+                  "    );",
+                  "    pm.expect(account.location.latitude).to.equal(",
+                  "      Number(pm.variables.get(\"newUserLatitude\"))",
+                  "    );",
+                  "    pm.expect(account.location.longitude).to.equal(",
+                  "      Number(pm.variables.get(\"newUserLongitude\"))",
+                  "    );",
+                  "  });",
+                  "  if (Number.isInteger(account.id) && account.id > 0) {",
+                  "    pm.variables.set(\"createdUserId\", String(account.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 - Encerrar sessão",
+      "description": "Execute ao concluir. Busca token CSRF atual, encerra a sessão e verifica 401. Rodar a coleção inteira também encerra a sessão ao final.",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let permitted = true;",
+                  "function skip(reason) {",
+                  "  permitted = false;",
+                  "  console.warn(reason);",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "",
+                  "if (permitted) {",
+                  "",
+                  "}",
+                  "",
+                  "if (permitted) {",
+                  "  pm.sendRequest({url: pm.variables.replaceIn(\"{{baseUrl}}/api/auth/csrf\"), method:\"GET\", header:{Accept:\"application/json\"}}, function (error, response) {",
+                  "    if (error || !response || response.code !== 200) {",
+                  "      pm.test(\"Foi possível obter CSRF antes do envio\", function () { throw new Error(\"CSRF indisponível; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "      return;",
+                  "    }",
+                  "    try {",
+                  "      const token = response.json();",
+                  "      if (typeof token.headerName !== \"string\" || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(token.headerName) || typeof token.token !== \"string\" || !token.token.trim()) throw new Error(\"Formato CSRF inválido\");",
+                  "      pm.request.headers.upsert({key:token.headerName, value:token.token});",
+                  "    } catch (error) {",
+                  "      pm.test(\"Token CSRF válido antes do envio\", function () { throw new Error(\"Resposta CSRF inválida; solicitação principal não enviada.\"); });",
+                  "      pm.execution.skipRequest();",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Sessão encerrada\",function(){pm.expect(pm.response.json().status).to.eql(\"logged_out\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar sessão encerrada",
+          "request": {
+            "method": "GET",
+            "description": "",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

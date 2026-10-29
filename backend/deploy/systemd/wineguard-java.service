@@ -1,0 +1,17 @@
+[Unit]
+Description=Backend Java WineGuard
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/wineguard-java
+EnvironmentFile=/home/ubuntu/wineguard-java/.env
+ExecStart=/usr/bin/java -jar /home/ubuntu/wineguard-java/target/wineguard-backend-0.0.1-SNAPSHOT.jar
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
