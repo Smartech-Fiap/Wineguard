@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_REFRESH_INTERVAL_MS, ApiError, createDevice, createEnvironment, deleteDevice, getCsrfToken, getCurrentReadings, getDeviceConfiguration, getDeviceLimits, getDevices, getEnvironments, getSensorHistory, getSession, login, logout as endSession, provisionDevice, retryAndWatchDeviceConfiguration, saveDeviceLimit, sendDeviceAlert, subscribeToSessionExpiration, submitAndWatchDeviceConfiguration, validateDeviceConfigurationValues, watchDeviceConfiguration } from './api.js'
 import VineyardMap, { VineyardDetails } from './VineyardMap.jsx'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
+import { luminosityPercent } from './luminosity.js'
 
 const navigationItems = [
   { id: 'inicio', label: 'Visão geral', icon: 'grid' },
@@ -17,7 +18,7 @@ const navigationItems = [
 const metrics = {
   temperature: { label: 'Temperatura', unit: '°C', color: '#914559', fill: '#f8edf0', icon: 'temperature' },
   humidity: { label: 'Umidade', unit: '%', color: '#578be8', fill: '#eef4ff', icon: 'humidity' },
-  luminosity: { label: 'Luminosidade', unit: '', color: '#e4a923', fill: '#fff8e7', icon: 'sun' },
+  luminosity: { label: 'Luminosidade', unit: '%', color: '#e4a923', fill: '#fff8e7', icon: 'sun' },
 }
 
 const deviceMetrics = {
@@ -101,8 +102,10 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }) {
   return <svg {...common}>{paths[name] || paths.grid}</svg>
 }
 
-function HistoryChart({ points, metric }) {
+function HistoryChart({ points: rawPoints, metric }) {
   const config = metrics[metric]
+  // A API e os limites permanecem em ADC; convertemos somente a apresentação.
+  const points = metric === 'luminosity' ? rawPoints.map((point) => ({ ...point, value: luminosityPercent(point.value) })) : rawPoints
   const width = 720
   const height = 218
   const pad = { top: 12, right: 12, bottom: 32, left: 42 }
@@ -110,8 +113,8 @@ function HistoryChart({ points, metric }) {
   const minValue = Math.min(...values)
   const maxValue = Math.max(...values)
   const verticalPadding = maxValue === minValue ? Math.max(Math.abs(maxValue) * 0.05, 1) : (maxValue - minValue) * 0.12
-  const min = minValue - verticalPadding
-  const max = maxValue + verticalPadding
+  const min = metric === 'luminosity' ? Math.max(0, minValue - verticalPadding) : minValue - verticalPadding
+  const max = metric === 'luminosity' ? Math.min(100, maxValue + verticalPadding) : maxValue + verticalPadding
   const start = points[0].timestamp
   const end = points[points.length - 1].timestamp
   const duration = end - start
@@ -135,7 +138,7 @@ function HistoryChart({ points, metric }) {
       })}
       <path d={area} fill="url(#chart-fill)" />
       <path d={line} fill="none" stroke={config.color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      {pointsForChart.map((point, index) => <circle key={`${point.receivedAt}-${index}`} cx={point.x} cy={point.y} r={points.length === 1 ? 4 : 2.5} fill={config.color} stroke="white" strokeWidth="1.5"><title>{`${formatTimestamp(point.receivedAt)} · ${formatValue(point.value)}`}</title></circle>)}
+      {pointsForChart.map((point, index) => <circle key={`${point.receivedAt}-${index}`} cx={point.x} cy={point.y} r={points.length === 1 ? 4 : 2.5} fill={config.color} stroke="white" strokeWidth="1.5"><title>{`${formatTimestamp(point.receivedAt)} · ${formatValue(point.value)} ${config.unit}`}</title></circle>)}
       {labelIndexes.map((index) => <text key={`${points[index].receivedAt}-${index}`} x={pointsForChart[index].x} y={height - 3} className="axis-label" textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'}>{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(points[index].timestamp))}</text>)}
     </svg>
   )
@@ -1184,7 +1187,7 @@ function App() {
   const currentValues = useMemo(() => ({
     temperature: readings?.temperature,
     humidity: readings?.humidity,
-    luminosity: readings?.luminosity,
+    luminosity: luminosityPercent(readings?.luminosity),
   }), [readings])
 
   const retryReadings = () => {
@@ -1275,7 +1278,7 @@ function App() {
           {readingsError && readings && <div className="inline-warning" role="alert"><span>Falha ao atualizar as leituras. Exibindo a última resposta recebida.</span><button className="retry-button" onClick={retryReadings}>Tentar novamente</button></div>}
           {activeDevice && <section className="stats-grid" aria-label="Leituras atuais">
             {Object.entries(metrics).map(([key, config]) => (
-              <article className="stat-card" key={key}><div className="stat-top"><span>{config.label}</span><span className={`metric-icon ${key === 'luminosity' ? 'light' : key}`}><Icon name={config.icon} /></span></div><div className={`stat-value ${readingsLoading && !readings ? 'value-loading' : ''}`}>{readings ? formatValue(currentValues[key]) : readingsLoading ? '…' : 'Indisponível'}{readings && currentValues[key] !== null && currentValues[key] !== undefined && <span>{config.unit || 'valor LDR'}</span>}</div><div className="stat-footer"><span>{readings ? 'Última leitura do sensor' : readingsError ? 'Falha na consulta' : 'Aguardando resposta'}</span></div></article>
+              <article className="stat-card" key={key}><div className="stat-top"><span>{config.label}</span><span className={`metric-icon ${key === 'luminosity' ? 'light' : key}`}><Icon name={config.icon} /></span></div><div className={`stat-value ${readingsLoading && !readings ? 'value-loading' : ''}`}>{readings ? formatValue(currentValues[key]) : readingsLoading ? '…' : 'Indisponível'}{readings && currentValues[key] !== null && currentValues[key] !== undefined && <span>{config.unit}</span>}</div><div className="stat-footer"><span>{readings ? 'Última leitura do sensor' : readingsError ? 'Falha na consulta' : 'Aguardando resposta'}</span></div></article>
             ))}
             <article className="stat-card"><div className="stat-top"><span>Última medição</span><span className="metric-icon devices"><Icon name="clock" /></span></div><div className="measurement-time">{readings ? formatTimestamp(readings.measuredAt) : 'Indisponível'}</div><div className="stat-footer"><span>Horário informado pela API</span></div></article>
           </section>}
@@ -1289,7 +1292,7 @@ function App() {
               <div className="panel-heading"><div><h2>Histórico de leituras</h2><p>Até 20 registros nas últimas 24 horas, na ordem retornada pelo STH-Comet</p></div><button className="icon-button subtle" aria-label="Atualizar histórico" onClick={retryHistory} disabled={!activeDevice || historyLoading} title="Consultar novamente"><Icon name="clock" size={17} /></button></div>
               {!activeDevice && <p>Nenhum dispositivo cadastrado para consultar o histórico.</p>}
               <div className="chart-controls">{Object.entries(metrics).map(([key, value]) => <button key={key} className={`metric-tab ${metric === key ? 'selected' : ''}`} style={metric === key ? { '--metric-color': value.color } : {}} onClick={() => setMetric(key)} aria-pressed={metric === key}><span className="metric-tab-dot" />{value.label}</button>)}</div>
-              <div className="chart-summary"><span className="chart-current">{formatValue(currentValues[metric])} <small>{metrics[metric].unit || 'valor LDR'}</small></span>{hasCurrentHistory && historyUpdatedAt && historyUpdatedMetric === metric && <span className="chart-change">Consulta ao backend {formatTimestamp(historyUpdatedAt.toISOString())}</span>}</div>
+              <div className="chart-summary"><span className="chart-current">{formatValue(currentValues[metric])} <small>{metrics[metric].unit}</small></span>{hasCurrentHistory && historyUpdatedAt && historyUpdatedMetric === metric && <span className="chart-change">Consulta ao backend {formatTimestamp(historyUpdatedAt.toISOString())}</span>}</div>
               {activeDevice && historyLoading && !hasCurrentHistory && <RequestMessage loading label="histórico" />}
               {activeDevice && historyError && <RequestMessage error={historyError} onRetry={retryHistory} label="histórico" />}
               {!historyLoading && !historyError && hasCurrentHistory && history.length === 0 && <RequestMessage empty label="registros históricos" />}
@@ -1438,7 +1441,7 @@ function App() {
 
           {activeDevice && <section className="panel devices-panel" id="dispositivo-monitorado">
             <div className="panel-heading devices-heading"><div><h2>Leituras de {activeDevice?.name}</h2><p>Telemetria consultada na API Java autenticada</p></div></div>
-            <div className="device-grid single-device-grid"><article className="device-card"><div className="device-card-top"><div className="device-avatar"><Icon name="devices" size={19} /></div><span className="device-id">{activeDevice?.fiwareId}</span></div><div className="device-title-row"><div><h3>{activeDevice?.name}</h3><p>Dispositivo retornado pelo backend</p></div></div><div className="device-readings"><span><Icon name="temperature" size={15} /> {formatValue(currentValues.temperature)} °C</span><span><Icon name="humidity" size={15} /> {formatValue(currentValues.humidity)} %</span><span><Icon name="sun" size={15} /> {formatValue(currentValues.luminosity)}</span></div><div className="device-card-bottom"><span className="battery">Luminosidade: escala LDR não calibrada</span></div></article></div>
+            <div className="device-grid single-device-grid"><article className="device-card"><div className="device-card-top"><div className="device-avatar"><Icon name="devices" size={19} /></div><span className="device-id">{activeDevice?.fiwareId}</span></div><div className="device-title-row"><div><h3>{activeDevice?.name}</h3><p>Dispositivo retornado pelo backend</p></div></div><div className="device-readings"><span><Icon name="temperature" size={15} /> {formatValue(currentValues.temperature)} °C</span><span><Icon name="humidity" size={15} /> {formatValue(currentValues.humidity)} %</span><span><Icon name="sun" size={15} /> {formatValue(currentValues.luminosity)} %</span></div><div className="device-card-bottom"><span className="battery">Luminosidade relativa: 0–100% da escala do sensor (não calibrada em lux)</span></div></article></div>
           </section>}
           <footer className="page-footer"><span><i /> Interface Wineguard</span><span>{readings ? `Data da leitura informada pela API: ${formatTimestamp(readings.measuredAt)}` : 'Aguardando dados do backend'} <b>·</b> Sensor: {activeDevice?.fiwareId ?? 'Nenhum'}</span></footer>
         </div>
