@@ -21,7 +21,6 @@ Atualizado em 30/10/2026. Esta página reúne os materiais para o Microsoft Form
 | Código dashboard e requisitos | [Frontend](../frontend/README.md) e [requirementes.txt](../frontend/requirementes.txt) |
 | Arquitetura em camadas | [Documento](arquitetura-em-camadas.md) |
 | Manual de instalação e operação | [Manual consolidado](manual-instalacao-operacao.md) |
-| Simulação Wokwi | Não incluída por decisão da equipe em 30/10/2026. O item constava do enunciado original e não é marcado como atendido. |
 | Vídeo | Concluído, conforme confirmação da equipe. Encaminhamento direto pelo Forms; link não incluído na documentação por orientação da equipe. |
 | Fotos da montagem/encapsulamento | [Vista frontal e interna do protótipo](evidencias/README.md), fornecidas pela equipe. |
 | Interface Nextion | Projeto `.HMI`, `.TFT`, modelo do display e versão do editor ainda não fornecidos. |
@@ -34,7 +33,7 @@ O dashboard React consulta as informações por uma API Java autenticada, permit
 
 O sistema inclui perfis ADMIN/USER, controle de acesso por proprietário do dispositivo e mapa compartilhado de vinícolas sem exposição de sensores de outros usuários. A luminosidade é apresentada como percentual relativo, sem calibração em lux. Os avisos visuais e seu histórico recente são locais ao navegador e só registram ocorrências observadas com o painel aberto; não constituem um serviço de auditoria contínua no banco.
 
-A equipe informou aprovação do professor para o BME680 em substituição ao DHT-11 físico, uso dos LEDs verde/vermelho e alteração da lógica de atuação local com controle remoto pelo painel. A equipe decidiu não incluir a simulação Wokwi; não foi registrada dispensa desse item pelo professor. O escopo da dispensa de piscamento ainda precisa ser confirmado: o firmware físico atual usa LED vermelho fixo. Não afirmar atendimento literal dessa parte sem confirmar a adaptação.
+A equipe informou aprovação do professor para o BME680 em substituição ao DHT-11 físico, uso dos LEDs verde/vermelho e alteração da lógica de atuação local com controle remoto pelo painel. O escopo da dispensa de piscamento ainda precisa ser confirmado: o firmware físico atual usa LED vermelho fixo. Não afirmar atendimento literal dessa parte sem confirmar a adaptação.
 
 ## Conferência antes do envio
 

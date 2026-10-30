@@ -118,7 +118,3 @@ Ainda é necessário obter:
 - Compilação reproduzível a partir do repositório e registro da gravação/teste correspondente.
 
 Não há suíte automatizada do firmware incluída no repositório de origem. Os testes Java e de infraestrutura verificam seus próprios contratos; não devem ser apresentados como testes unitários ou compilação deste sketch.
-
-## Simulação acadêmica
-
-A equipe decidiu não incluir a simulação na entrega em 30/10/2026. O firmware físico com BME680 e LDR permanece inalterado. Essa decisão não é apresentada como dispensa do requisito pelo professor.

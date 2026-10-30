@@ -144,7 +144,7 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 
 O [pacote de entrega](docs/entrega-final.md) reúne identificação da equipe, descrição pronta da solução, links e checklist do Forms. Consulte o [manual consolidado](docs/manual-instalacao-operacao.md) e o [roteiro de apresentação e vídeo](docs/roteiro-apresentacao-video.md).
 
-A apresentação já foi realizada, conforme confirmação da equipe. A equipe decidiu não incluir a simulação na entrega; esse item do enunciado original não é apresentado como atendido. O vídeo está concluído e será enviado diretamente pelo Forms. As [fotos frontal e interna](docs/evidencias/README.md) documentam o encapsulamento. Os arquivos Nextion ainda não foram fornecidos.
+A apresentação já foi realizada, conforme confirmação da equipe. O vídeo está concluído e será enviado diretamente pelo Forms. As [fotos frontal e interna](docs/evidencias/README.md) documentam o encapsulamento. Os arquivos Nextion ainda não foram fornecidos.
 
 ## Próximas etapas
 

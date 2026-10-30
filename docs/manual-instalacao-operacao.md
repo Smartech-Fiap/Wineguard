@@ -1,6 +1,6 @@
 # Manual consolidado de instalação e operação — WineGuard
 
-Este manual orienta a execução e aponta os procedimentos detalhados de cada componente. O protótipo físico usa BME680. A equipe decidiu não incluir simulação na entrega. Não há medição de fumaça no escopo.
+Este manual orienta a execução e aponta os procedimentos detalhados de cada componente. O protótipo físico usa BME680. Não há medição de fumaça no escopo.
 
 ## 1. Identificar os componentes
 

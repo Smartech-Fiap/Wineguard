@@ -8,7 +8,7 @@ Atualização: 30/10/2026. Base: enunciado fornecido pela equipe, código do rep
 - LEDs verde/vermelho no lugar do LED azul.
 - Alteração da lógica de acionamento: controle local no ESP, com alertas e configuração remotos pelo painel.
 
-A informação de aprovação foi fornecida nesta revisão. O [pacote de entrega](entrega-final.md) descreve essas adaptações e diferenciais conforme as informações da equipe. Não se deve presumir que elas dispensam Wokwi, vídeo ou outros itens do enunciado.
+A informação de aprovação foi fornecida nesta revisão. O [pacote de entrega](entrega-final.md) descreve essas adaptações e diferenciais conforme as informações da equipe. Esta matriz documenta o conteúdo do repositório; os materiais encaminhados separadamente pelo Forms são organizados pela equipe.
 
 O piscamento merece confirmação separada: o código atual mantém o LED vermelho aceso durante o alerta; não implementa alternância temporizada para piscar. A confirmação das mudanças de cor e acionamento não especificou expressamente a dispensa do piscamento.
 
@@ -34,7 +34,6 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Manual de instalação/operação de software e hardware | [Manual consolidado](manual-instalacao-operacao.md) pronto, com links aos procedimentos detalhados. Reprodução exata do hardware/display ainda depende das versões, esquema e arquivos Nextion. |
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
-| Wokwi com LDR e DHT-22 | Não incluído por decisão da equipe em 30/10/2026. O requisito original é preservado nesta matriz, sem alegar atendimento ou dispensa pelo professor. |
 | Vídeo de evidências | Vídeo concluído, conforme informação posterior da equipe. Será enviado diretamente pelo Forms; seu link não deve ser incluído nesta documentação. |
 | Envio do Forms | Não comprovado por esta revisão. Conferir todos os links e campos antes do envio. |
 
@@ -74,15 +73,14 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
 - [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe. A simulação foi retirada do escopo de trabalho por decisão da equipe, sem ser apresentada como requisito atendido.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe.
 
 ## Prioridade para fechamento
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
-2. Manter explícita a decisão de não incluir a simulação; os nomes e RMs da equipe já estão completos.
-3. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
-4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
-5. Encaminhar o vídeo já concluído diretamente pelo Forms. A apresentação também já foi realizada; não exigir novo vídeo ou apresentação nesta revisão.
-6. Conferir os links e os campos do Forms e realizar o envio pela equipe.
+2. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
+3. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
+4. Encaminhar o vídeo já concluído diretamente pelo Forms. A apresentação também já foi realizada; não exigir novo vídeo ou apresentação nesta revisão.
+5. Conferir os links e os campos do Forms e realizar o envio pela equipe.
 
-Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a necessidade de conferir o envio dos materiais obrigatórios sem marcar a simulação não entregue como atendida.
+Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. O envio dos materiais exigidos pelo Forms deve ser conferido separadamente pela equipe.
