@@ -118,3 +118,7 @@ Ainda é necessário obter:
 - Compilação reproduzível a partir do repositório e registro da gravação/teste correspondente.
 
 Não há suíte automatizada do firmware incluída no repositório de origem. Os testes Java e de infraestrutura verificam seus próprios contratos; não devem ser apresentados como testes unitários ou compilação deste sketch.
+
+## Simulação acadêmica
+
+A equipe solicitou manter o BME680 e o LDR também na simulação. O Wokwi não oferece BME680 nativo; um modelo personalizado e seu teste ainda são necessários. A variante DHT-22 foi retirada da entrega. O sketch físico permanece inalterado.

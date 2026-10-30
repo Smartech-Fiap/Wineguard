@@ -1,6 +1,6 @@
 # Revisão de aderência ao Check Point
 
-Data: 29/10/2026. Base: enunciado fornecido pela equipe, código do repositório integrado e evidências manuais registradas. Esta matriz não atribui nota nem substitui a avaliação do professor.
+Atualização: 30/10/2026. Base: enunciado fornecido pela equipe, código do repositório integrado e evidências manuais registradas. Esta matriz não atribui nota nem substitui a avaliação do professor.
 
 ## Adaptações aprovadas, segundo a equipe
 
@@ -8,7 +8,7 @@ Data: 29/10/2026. Base: enunciado fornecido pela equipe, código do repositório
 - LEDs verde/vermelho no lugar do LED azul.
 - Alteração da lógica de acionamento: controle local no ESP, com alertas e configuração remotos pelo painel.
 
-A informação de aprovação foi fornecida nesta revisão. Ainda falta descrever no material de entrega o escopo exato dessas adaptações e seus diferenciais. Não se deve presumir que elas dispensam Wokwi, vídeo ou outros itens do enunciado.
+A informação de aprovação foi fornecida nesta revisão. O [pacote de entrega](entrega-final.md) descreve essas adaptações e diferenciais conforme as informações da equipe. Não se deve presumir que elas dispensam Wokwi, vídeo ou outros itens do enunciado.
 
 O piscamento merece confirmação separada: o código atual mantém o LED vermelho aceso durante o alerta; não implementa alternância temporizada para piscar. A confirmação das mudanças de cor e acionamento não especificou expressamente a dispensa do piscamento.
 
@@ -18,10 +18,10 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 |---|---:|---|---|
 | Encapsulamento | 10% | Não confirmado | Solicitar evidência da montagem/caixa e confirmar se o critério se refere ao acabamento físico. A separação de classes no código não comprova encapsulamento do protótipo. |
 | Diferencial | 10% | Implementações presentes | BME680 e Nextion, autenticação/perfis, propriedade de sensores, mapa, MQTT/TLS e configuração com revisão, NVS e recuperação. Destacar somente o que funciona e o que foi aprovado. |
-| Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. Confirmar o manual seguindo os passos em outro ambiente. |
-| Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, limites por métrica e configuração completa. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
+| Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. O manual consolidado de operação já foi preparado. Confirmar o manual seguindo os passos em outro ambiente. |
+| Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, fluxo único de limites/configuração completa, histórico selecionável e avisos locais ao navegador. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
 | GitHub: README, arquitetura em camadas e códigos | 10% | Documentado | Componentes, READMEs, [arquitetura em camadas](arquitetura-em-camadas.md) e [nomes/RMs/responsabilidades da equipe](../README.md#equipe-e-responsabilidades) presentes. Conferir os links antes do envio da entrega. |
-| Hands-on e pitch | 40% | Integração testada, avaliação presencial ainda não comprovada | Alertas, telemetria e recuperação foram observados com o ESP. Preparar roteiro, ensaiar e realizar a apresentação no laboratório; testes remotos não equivalem à avaliação presencial. |
+| Hands-on e pitch | 40% | Apresentação realizada, conforme informação da equipe | A equipe informou que a apresentação já foi realizada. Reunir vídeo, fotos e comprovantes quando disponíveis; esta revisão não informa nota ou resultado da avaliação. |
 
 ## Itens de entrega no Forms
 
@@ -29,13 +29,13 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 |---|---|
 | Link GitHub com `.ino` | Presente: [sketch ESP32](../firmware/WineGuard_firmware/WineGuard_firmware.ino). |
 | Nome dos integrantes | Nomes completos, RMs e responsabilidades confirmados pela equipe no README: Artur de Novazzi Maia — 572624; Arthur Pinheiro Germano — 574042; Bruno Araújo Castro — 572723; João Pedro de Souza — 571437. |
-| Descrição completa da solução | Visão geral e contratos presentes nos READMEs; consolidar a narrativa final e as adaptações aprovadas. |
+| Descrição completa da solução | READMEs e [descrição consolidada da solução](entrega-final.md) com adaptações informadas como aprovadas. |
 | Arquitetura em camadas | [Documento consolidado](arquitetura-em-camadas.md) com camadas, pacotes Java, persistência, fluxos, acesso, implantação e referências ao código. |
-| Manual de instalação/operação de software e hardware | Parcial; pendências de reprodução e hardware identificadas abaixo. |
+| Manual de instalação/operação de software e hardware | [Manual consolidado](manual-instalacao-operacao.md) pronto, com links aos procedimentos detalhados. Reprodução exata do hardware/display ainda depende das versões, esquema e arquivos Nextion. |
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
-| Wokwi com LDR e DHT-22 | Não foi localizado link ou projeto Wokwi na versão revisada. Solicitar o link existente ou preparar uma simulação separada; a aprovação do BME680 físico não comprova dispensa desse item. |
-| Vídeo de evidências | Não foi localizado link do vídeo na documentação revisada. Preparar/gravar e registrar o link acessível ao avaliador. |
+| Wokwi com LDR e DHT-22 | A equipe solicitou manter BME680 e LDR também na simulação. Wokwi não oferece BME680 nativo; modelo personalizado e link público permanecem pendentes. A variante DHT foi retirada da entrega. |
+| Vídeo de evidências | [Roteiro de vídeo e hands-on](roteiro-apresentacao-video.md) pronto. A equipe informou em 30/10 que ainda precisa preparar vídeo, fotos e arquivos Nextion. |
 | Envio do Forms | Não comprovado por esta revisão. Conferir todos os links e campos antes do envio. |
 
 ## Comportamento de alerta: requisito original e implementação
@@ -44,7 +44,7 @@ O enunciado original exige acionamento remoto pelo frontend, LED azul piscando a
 
 No código atual:
 
-- O frontend salva limites e permite enviar alertas manualmente; não há comparação automática de leituras com os limites para emitir comandos.
+- O frontend registra e envia os cinco limites por revisão e permite enviar comandos manuais. Há comparação visual de leituras recentes com limites confirmados e histórico de avisos local ao navegador; esses avisos não emitem comandos automaticamente.
 - O ESP avalia localmente temperatura, umidade e LDR com histerese. Isso permite controle local durante indisponibilidade de rede.
 - A saída visual usa LED vermelho fixo durante alerta ou falha de sensor e verde no estado normal.
 - O buzzer tem padrões distintos: dois bipes para temperatura, três para umidade e um longo para luminosidade.
@@ -74,15 +74,15 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
 - [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. Não foram localizados neste recorte vídeo, Wokwi ou evidência de caixa/encapsulamento; isso não afirma que esses materiais não existam com outro integrante.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou em 30/10 que vídeo, fotos e arquivos Nextion ainda serão preparados. A apresentação já foi realizada, segundo a equipe. A simulação deve manter BME680/LDR e ainda precisa de modelo personalizado e link.
 
 ## Prioridade para fechamento
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
-2. Reunir o link Wokwi ou sua situação aprovada; os nomes e RMs da equipe já estão completos.
-3. Complementar os manuais de hardware e ensaiar a explicação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
+2. Concluir e salvar a simulação Wokwi e registrar o link; os nomes e RMs da equipe já estão completos.
+3. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
 4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
-5. Preparar o vídeo e ensaiar o pitch/hands-on, com cenários normal, anomalia e recuperação.
+5. Preparar o vídeo de evidências conforme o [roteiro](roteiro-apresentacao-video.md). A apresentação já foi realizada e não é tratada como pendência.
 6. Conferir os links e os campos do Forms e realizar o envio pela equipe.
 
 Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a ausência de materiais obrigatórios como vídeo e simulação.

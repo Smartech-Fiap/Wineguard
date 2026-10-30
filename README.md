@@ -129,7 +129,7 @@ Dentro de `backend/`:
 
 No Windows, use `mvnw.cmd` no lugar de `./mvnw`.
 
-Na validação de 29/10/2026, passaram **59 testes do frontend**, com HTTP simulado, e **77 testes do backend**, incluindo regras de serviço e segurança de controladores com dependências simuladas. Essas suítes não exigem ESP ou FIWARE ativos e não substituem testes físicos, consultas JPA reais ou concorrência do PostgreSQL.
+Na validação de 30/10/2026, passaram **71 testes do frontend**, com HTTP simulado, e, na validação anterior de 29/10/2026, **77 testes do backend**, incluindo regras de serviço e segurança de controladores com dependências simuladas. Essas suítes não exigem ESP ou FIWARE ativos e não substituem testes físicos, consultas JPA reais ou concorrência do PostgreSQL.
 
 Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, restrições de acesso, mapa compartilhado, salvamento de limite com CSRF pela Vercel, alerta físico de temperatura, comando `normal`, recuperação da revisão 2 e telemetria da configuração após o reinício solicitado do ESP. A revisão 2 permaneceu aplicada após recarregar o painel.
 
@@ -139,6 +139,12 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 - [Migrações, rotas e contratos](backend/README.md).
 - [Infraestrutura, origem e procedimento de reprodução](infra/fiware/README.md). Compose validado com `docker compose config --quiet` e sete testes offline aprovados também na VM; isso não substitui a execução da stack revisada.
 - [Firmware, configuração local e sinais dos componentes](firmware/README.md). A integração física registrada não equivale à recompilação deste sketch ou à comparação do binário gravado com seu commit.
+
+## Entrega acadêmica
+
+O [pacote de entrega](docs/entrega-final.md) reúne identificação da equipe, descrição pronta da solução, links e checklist do Forms. Consulte o [manual consolidado](docs/manual-instalacao-operacao.md) e o [roteiro de apresentação e vídeo](docs/roteiro-apresentacao-video.md).
+
+A apresentação já foi realizada, conforme confirmação da equipe. A simulação deve preservar ESP32, BME680 e LDR; como o Wokwi não oferece BME680 nativo, o modelo personalizado e o link permanecem pendentes. A variante DHT foi retirada da entrega. Vídeo, fotos/encapsulamento e arquivos Nextion ainda dependem da equipe.
 
 ## Próximas etapas
 
