@@ -20,7 +20,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Diferencial | 10% | Implementações presentes | BME680 e Nextion, autenticação/perfis, propriedade de sensores, mapa, MQTT/TLS e configuração com revisão, NVS e recuperação. Destacar somente o que funciona e o que foi aprovado. |
 | Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. Confirmar o manual seguindo os passos em outro ambiente. |
 | Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, limites por métrica e configuração completa. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
-| GitHub: README, arquitetura em camadas e códigos | 10% | Parcial | Componentes, READMEs e [arquitetura em camadas](arquitetura-em-camadas.md) presentes; ainda adicionar nomes completos e divisão da equipe e conferir o restante dos materiais de entrega. |
+| GitHub: README, arquitetura em camadas e códigos | 10% | Documentado | Componentes, READMEs, [arquitetura em camadas](arquitetura-em-camadas.md) e [nomes/RMs/responsabilidades da equipe](../README.md#equipe-e-responsabilidades) presentes. Conferir os links antes do envio da entrega. |
 | Hands-on e pitch | 40% | Integração testada, avaliação presencial ainda não comprovada | Alertas, telemetria e recuperação foram observados com o ESP. Preparar roteiro, ensaiar e realizar a apresentação no laboratório; testes remotos não equivalem à avaliação presencial. |
 
 ## Itens de entrega no Forms
@@ -28,7 +28,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Exigência | Situação no repositório |
 |---|---|
 | Link GitHub com `.ino` | Presente: [sketch ESP32](../firmware/WineGuard_firmware/WineGuard_firmware.ino). |
-| Nome dos integrantes | O README informa quatro integrantes, mas não lista seus nomes completos. Pendente. |
+| Nome dos integrantes | Nomes completos, RMs e responsabilidades confirmados pela equipe no README: Artur de Novazzi Maia — 572624; Arthur Pinheiro Germano — 574042; Bruno Araújo Castro — 572723; João Pedro de Souza — 571437. |
 | Descrição completa da solução | Visão geral e contratos presentes nos READMEs; consolidar a narrativa final e as adaptações aprovadas. |
 | Arquitetura em camadas | [Documento consolidado](arquitetura-em-camadas.md) com camadas, pacotes Java, persistência, fluxos, acesso, implantação e referências ao código. |
 | Manual de instalação/operação de software e hardware | Parcial; pendências de reprodução e hardware identificadas abaixo. |
@@ -74,12 +74,12 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
 - [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Não foram localizados neste recorte nomes completos, vídeo, Wokwi ou evidência de caixa/encapsulamento; isso não afirma que esses materiais não existam com outro integrante.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. Não foram localizados neste recorte vídeo, Wokwi ou evidência de caixa/encapsulamento; isso não afirma que esses materiais não existam com outro integrante.
 
 ## Prioridade para fechamento
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
-2. Reunir nomes completos/divisão da equipe e link Wokwi ou sua situação aprovada.
+2. Reunir o link Wokwi ou sua situação aprovada; os nomes e RMs da equipe já estão completos.
 3. Complementar os manuais de hardware e ensaiar a explicação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
 4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
 5. Preparar o vídeo e ensaiar o pitch/hands-on, com cenários normal, anomalia e recuperação.

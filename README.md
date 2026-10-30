@@ -6,6 +6,17 @@ Projeto acadêmico de uma equipe de quatro integrantes para monitorar temperatur
 
 O acesso exige conta fornecida pela equipe; não existe cadastro público. A API depende das instâncias do laboratório AWS ativas e de certificado HTTPS válido. O site estático na Vercel pode abrir mesmo quando a API ou o ESP estão indisponíveis.
 
+## Equipe e responsabilidades
+
+| Integrante | RM | Responsabilidade informada pela equipe |
+|---|---|---|
+| Artur de Novazzi Maia | 572624 | FIWARE, integração final e Express |
+| João Pedro de Souza | 571437 | Banco de dados e backend Java |
+| Bruno Araújo Castro | 572723 | Painel e dashboard |
+| Arthur Pinheiro Germano | 574042 | ESP32 e firmware |
+
+Nomes, RMs e responsabilidades foram informados pela equipe. Os históricos dos componentes e os créditos da infraestrutura de origem foram preservados.
+
 ## Estado da entrega
 
 O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend, backend e firmware estão reunidos neste repositório, com seus históricos Git preservados. Os modelos FIWARE/MQTT estão em `infra/fiware/` e precisam de reprodução em instalação nova. No firmware, versões do ambiente de compilação, esquema elétrico e arquivos Nextion ainda precisam de confirmação e complementação.
