@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { API_REFRESH_INTERVAL_MS, ApiError, createDevice, createEnvironment, deleteDevice, getCsrfToken, getCurrentReadings, getDeviceConfiguration, getDeviceLimits, getDevices, getEnvironments, getSensorHistory, getSession, login, logout as endSession, provisionDevice, retryAndWatchDeviceConfiguration, saveDeviceLimit, sendDeviceAlert, subscribeToSessionExpiration, submitAndWatchDeviceConfiguration, validateDeviceConfigurationValues, watchDeviceConfiguration } from './api.js'
+import { API_REFRESH_INTERVAL_MS, ApiError, createDevice, createEnvironment, deleteDevice, getCsrfToken, getCurrentReadings, getDeviceConfiguration, getDevices, getEnvironments, getSensorHistory, getSession, login, logout as endSession, provisionDevice, retryAndWatchDeviceConfiguration, sendDeviceAlert, subscribeToSessionExpiration, submitAndWatchDeviceConfiguration, validateDeviceConfigurationValues, watchDeviceConfiguration } from './api.js'
 import VineyardMap, { VineyardDetails } from './VineyardMap.jsx'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
-import { luminosityPercent } from './luminosity.js'
+import { luminosityPercent, luminosityAdc } from './luminosity.js'
 
 const navigationItems = [
   { id: 'inicio', label: 'Visão geral', icon: 'grid' },
@@ -10,8 +10,7 @@ const navigationItems = [
   { id: 'historico', label: 'Histórico', icon: 'chart' },
   { id: 'ambientes', label: 'Ambientes', icon: 'grapes' },
   { id: 'dispositivos', label: 'Dispositivos', icon: 'devices' },
-  { id: 'limites', label: 'Limites', icon: 'settings' },
-  { id: 'configuracao-esp', label: 'Configuração ESP', mobileLabel: 'ESP', icon: 'settings' },
+  { id: 'limites', label: 'Limites e alertas', mobileLabel: 'Limites', icon: 'settings' },
   { id: 'usuarios', label: 'Usuários', icon: 'devices' },
 ]
 
@@ -21,18 +20,12 @@ const metrics = {
   luminosity: { label: 'Luminosidade', unit: '%', color: '#e4a923', fill: '#fff8e7', icon: 'sun' },
 }
 
-const deviceMetrics = {
-  TEMPERATURE: { label: 'Temperatura' },
-  HUMIDITY: { label: 'Umidade' },
-  LUMINOSITY: { label: 'Luminosidade' },
-}
-
 const configurationFields = [
   { key: 'temperatureMin', label: 'Temperatura mínima', unit: '°C', min: -20, max: 60 },
   { key: 'temperatureMax', label: 'Temperatura máxima', unit: '°C', min: -20, max: 60 },
   { key: 'humidityMin', label: 'Umidade mínima', unit: '%', min: 0, max: 100 },
   { key: 'humidityMax', label: 'Umidade máxima', unit: '%', min: 0, max: 100 },
-  { key: 'luminosityMax', label: 'Luminosidade máxima', unit: 'ADC', min: 200, max: 4095, step: 1 },
+  { key: 'luminosityMax', label: 'Luminosidade máxima', unit: '%', min: 5, max: 100, step: 0.1 },
 ]
 
 const configurationStatusLabels = {
@@ -214,44 +207,6 @@ function LoginScreen({ onLogin, error, busy }) {
   )
 }
 
-function LimitEditor({ deviceId, metric, current, busy, onSave }) {
-  // O rascunho permite editar sem escrever na API a cada tecla. A chave do
-  // componente é renovada quando o cadastro retornado pelo backend muda.
-  const [minimum, setMinimum] = useState(current?.minimumValue === null || current?.minimumValue === undefined ? '' : String(current.minimumValue))
-  const [maximum, setMaximum] = useState(current?.maximumValue === null || current?.maximumValue === undefined ? '' : String(current.maximumValue))
-  const [unit, setUnit] = useState(current?.unit || '')
-  const [error, setError] = useState('')
-
-  const submit = (event) => {
-    event.preventDefault()
-    const minimumValue = minimum === '' ? null : Number(minimum)
-    const maximumValue = maximum === '' ? null : Number(maximum)
-    if ((minimum !== '' && !Number.isFinite(minimumValue)) ||
-        (maximum !== '' && !Number.isFinite(maximumValue)) ||
-        (minimumValue === null && maximumValue === null) ||
-        (minimumValue !== null && maximumValue !== null && minimumValue > maximumValue) ||
-        unit.trim() === '') {
-      setError('Informe ao menos um valor válido, uma unidade e uma faixa não invertida.')
-      return
-    }
-    setError('')
-    onSave(deviceId, { metric, minimumValue, maximumValue, unit })
-  }
-
-  return (
-    <form className="limit-editor" onSubmit={submit}>
-      <div className="limit-editor-heading"><strong>{deviceMetrics[metric].label}</strong><span>{current ? 'Configurado' : 'Sem limite'}</span></div>
-      <div className="management-fields limit-fields">
-        <label>Mínimo<input type="number" step="any" value={minimum} onChange={(event) => setMinimum(event.target.value)} aria-label={`${deviceMetrics[metric].label}: mínimo`} /></label>
-        <label>Máximo<input type="number" step="any" value={maximum} onChange={(event) => setMaximum(event.target.value)} aria-label={`${deviceMetrics[metric].label}: máximo`} /></label>
-        <label>Unidade<input value={unit} maxLength={20} onChange={(event) => setUnit(event.target.value)} required aria-label={`${deviceMetrics[metric].label}: unidade`} /></label>
-      </div>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <button className="secondary-button limit-save" type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Salvar limite'}</button>
-    </form>
-  )
-}
-
 function DeviceConfigurationPanel({
   deviceId,
   configuration,
@@ -285,9 +240,8 @@ function DeviceConfigurationPanel({
       if (Object.values(values).some((value) => value === '')) {
         throw new Error('Preencha todos os valores da configuração do ESP.')
       }
-      const validated = validateDeviceConfigurationValues(Object.fromEntries(
-        Object.entries(values).map(([field, value]) => [field, Number(value)]),
-      ))
+      const numeric = Object.fromEntries(Object.entries(values).map(([field, value]) => [field, Number(value)]))
+      const validated = validateDeviceConfigurationValues({ ...numeric, luminosityMax: luminosityAdc(numeric.luminosityMax) })
       setValidationError('')
       onSubmit(validated)
     } catch (error) {
@@ -298,7 +252,7 @@ function DeviceConfigurationPanel({
   const readOnlyValues = configuration && configurationFields.map((field) => (
     <div className="configuration-value" key={field.key}>
       <span>{field.label}</span>
-      <strong>{formatValue(configuration[field.key], 1)} {field.unit}</strong>
+      <strong>{formatValue(field.key === 'luminosityMax' ? luminosityPercent(configuration[field.key]) : configuration[field.key], field.key === 'luminosityMax' ? 2 : 1)} {field.unit}</strong>
     </div>
   ))
 
@@ -306,12 +260,12 @@ function DeviceConfigurationPanel({
     <section className="panel management-panel esp-configuration" aria-labelledby={`configuration-title-${deviceId}`}>
       <div className="panel-heading">
         <div>
-          <h2 id={`configuration-title-${deviceId}`}>Configuração do ESP</h2>
-          <p>Envio completo de parâmetros para o dispositivo {deviceId}</p>
+          <h2 id={`configuration-title-${deviceId}`}>Limites e alertas</h2>
+          <p>Limites salvos por revisão e enviados ao dispositivo {deviceId}</p>
         </div>
         {configuration && <span className={`configuration-status status-${displayState.toLowerCase()}`}>{configurationStatusLabels[displayState]}</span>}
       </div>
-      <p className="management-notice">Esta operação solicita ao ESP a aplicação de todos os parâmetros. Os valores só são considerados ativos após confirmação APPLIED pela API Java.</p>
+      <p className="management-notice">Ao salvar, os cinco limites são registrados juntos no banco e enviados ao ESP. Só a confirmação do dispositivo torna esta revisão aplicada. Se ele estiver desconectado, a solicitação permanece sem confirmação.</p>
       {configuration && (
         <div className="configuration-record">
           <div className="configuration-metadata">
@@ -333,7 +287,11 @@ function DeviceConfigurationPanel({
       {timedOut && <p className="configuration-note" role="status">A confirmação não chegou em 45 segundos. A configuração não foi reenviada; consulte o estado da revisão.</p>}
       {needsVerification && !configuration && <p className="configuration-note" role="status">O resultado do envio é desconhecido. Verifique o estado antes de iniciar uma nova configuração; nenhum POST será repetido automaticamente.</p>}
       <form className="configuration-form" onSubmit={submit}>
-        <h3>{configuration ? 'Nova revisão de configuração' : 'Enviar configuração completa'}</h3>
+        <h3>{configuration ? 'Definir novos limites' : 'Definir limites do dispositivo'}</h3>
+        {configuration && <button className="secondary-button" type="button" disabled={busy || blocked || loading || tracking} onClick={() => {
+          setValues(Object.fromEntries(configurationFields.map((field) => [field.key, String(field.key === 'luminosityMax' ? luminosityPercent(configuration[field.key]) : configuration[field.key])])))
+          setValidationError('')
+        }}>Preencher com os últimos valores solicitados</button>}
         <div className="configuration-fields">
           {configurationFields.map((field) => (
             <label key={field.key}>{field.label} ({field.unit})
@@ -341,7 +299,7 @@ function DeviceConfigurationPanel({
                 type="number"
                 min={field.min}
                 max={field.max}
-                step={field.step || 0.1}
+                step={field.key === 'luminosityMax' ? 'any' : field.step || 0.1}
                 value={values[field.key]}
                 onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
                 required
@@ -350,11 +308,11 @@ function DeviceConfigurationPanel({
             </label>
           ))}
         </div>
-        <p className="configuration-hint">Temperatura: −20 a 60 °C, no máximo uma casa decimal, intervalo maior que 2 °C. Umidade: 0 a 100%, no máximo uma casa decimal, intervalo maior que 6 pontos. Luminosidade: inteiro entre 200 e 4095 ADC.</p>
+        <p className="configuration-hint">Temperatura: −20 a 60 °C, no máximo uma casa decimal, intervalo maior que 2 °C. Umidade: 0 a 100%, no máximo uma casa decimal, intervalo maior que 6 pontos. Luminosidade relativa: 5 a 100%, convertida para a escala do ESP no envio. Os limites de temperatura e umidade usam histerese para evitar alertas oscilando perto da faixa.</p>
         {validationError && <p className="form-error" role="alert">{validationError}</p>}
         <div className="configuration-actions">
           <button className="primary-button" type="submit" disabled={busy || loading || tracking || blocked}>
-            {busy ? 'Enviando…' : configuration ? 'Enviar nova revisão' : 'Enviar configuração'}
+            {busy ? 'Salvando e enviando…' : 'Salvar e enviar ao ESP'}
           </button>
           {(needsVerification || timedOut || displayState === 'UNCONFIRMED' || configuration?.state === 'PENDING') && (
             <button className="secondary-button" type="button" onClick={onVerify} disabled={loading || busy || tracking}>
@@ -424,13 +382,6 @@ function App() {
   const [deviceSaveError, setDeviceSaveError] = useState('')
   const [deviceSaveSuccess, setDeviceSaveSuccess] = useState('')
   const [selectedLimitDevice, setSelectedLimitDevice] = useState(null)
-  const [deviceLimits, setDeviceLimits] = useState([])
-  const [limitsLoading, setLimitsLoading] = useState(false)
-  const [limitsError, setLimitsError] = useState('')
-  const [limitsRetry, setLimitsRetry] = useState(0)
-  const [limitBusy, setLimitBusy] = useState(false)
-  const [limitSaveError, setLimitSaveError] = useState('')
-  const [limitSaveSuccess, setLimitSaveSuccess] = useState('')
   const [deviceActionBusy, setDeviceActionBusy] = useState('')
   const [deviceActionMessages, setDeviceActionMessages] = useState({})
   const [deviceAlertCommands, setDeviceAlertCommands] = useState({})
@@ -609,7 +560,6 @@ function App() {
       setHistory(null)
       setReadingsError('')
       setHistoryError('')
-      setDeviceLimits([])
       setDeviceConfiguration(null)
       setDeviceActionMessages({})
       setDeviceSaveSuccess('')
@@ -840,24 +790,6 @@ function App() {
     }
   }, [authStatus, activeLimitDevice])
 
-  useEffect(() => {
-    if (authStatus !== 'authenticated' || activeLimitDevice === null) return undefined
-    let active = true
-    const controller = new AbortController()
-    getDeviceLimits(activeLimitDevice, { signal: controller.signal }).then((data) => {
-      if (!active) return
-      setDeviceLimits(data)
-      setLimitsError('')
-    }).catch((error) => {
-      if (active && error.name !== 'AbortError') setLimitsError(error.message)
-    }).finally(() => {
-      if (active) setLimitsLoading(false)
-    })
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [authStatus, activeLimitDevice, limitsRetry])
 
   useEffect(() => {
     if (authStatus !== 'authenticated' || activeLimitDevice === null) return undefined
@@ -953,7 +885,6 @@ function App() {
       setConfigurationSubmissionError('')
       setConfigurationNeedsVerification(false)
       setConfigurationTimedOut(false)
-      setLimitsLoading(true)
       setSelectedLimitDevice(created.id)
       setDeviceForm((current) => ({
         ...current,
@@ -969,21 +900,6 @@ function App() {
       setDeviceSaveError(error.message)
     } finally {
       setDeviceBusy(false)
-    }
-  }
-
-  const handleSaveLimit = async (deviceId, limit) => {
-    setLimitBusy(true)
-    setLimitSaveError('')
-    setLimitSaveSuccess('')
-    try {
-      const saved = await saveDeviceLimit(deviceId, limit, csrf)
-      setDeviceLimits((current) => [...current.filter((item) => item.metric !== saved.metric), saved])
-      setLimitSaveSuccess(`Limite de ${deviceMetrics[saved.metric].label.toLowerCase()} salvo no backend.`)
-    } catch (error) {
-      setLimitSaveError(error.message)
-    } finally {
-      setLimitBusy(false)
     }
   }
 
@@ -1005,7 +921,6 @@ function App() {
         const remaining = devices.filter((item) => item.id !== deviceId)
         setDevices(remaining)
         setDeviceActionMessages({})
-        setDeviceLimits([])
         setSelectedLimitDevice(remaining[0]?.id ?? null)
         if (selectedConfigurationDeviceRef.current === deviceId) {
           cancelConfigurationTracking()
@@ -1164,7 +1079,7 @@ function App() {
       const latest = await retryAndWatchDeviceConfiguration(deviceId, current.revision, csrf, {
         signal: controller.signal,
         confirmRetry: (configuration) => window.confirm(
-          `A revisão ${configuration.revision} permanece não confirmada. Reenviar os valores armazenados pelo backend?\n\nTemperatura: ${configuration.temperatureMin}–${configuration.temperatureMax} °C\nUmidade: ${configuration.humidityMin}–${configuration.humidityMax}%\nLuminosidade máxima: ${configuration.luminosityMax} ADC\n\nOs valores editados no formulário não serão usados.`,
+          `A revisão ${configuration.revision} permanece não confirmada. Reenviar os valores armazenados pelo backend?\n\nTemperatura: ${configuration.temperatureMin}–${configuration.temperatureMax} °C\nUmidade: ${configuration.humidityMin}–${configuration.humidityMax}%\nLuminosidade máxima: ${formatValue(luminosityPercent(configuration.luminosityMax), 2)}%\n\nOs valores editados no formulário não serão usados.`,
         ),
         onRetryAccepted: (configuration) => {
           if (isCurrent()) {
@@ -1202,8 +1117,6 @@ function App() {
     const nextDeviceId = Number(event.target.value)
     cancelConfigurationTracking()
     selectedConfigurationDeviceRef.current = nextDeviceId
-    setLimitsLoading(true)
-    setLimitsError('')
     setConfigurationLoading(true)
     setConfigurationError('')
     setConfigurationSubmissionError('')
@@ -1235,15 +1148,8 @@ function App() {
   }
   const retryDevices = () => {
     setDevicesLoading(true)
-    setLimitsLoading(true)
     setDevicesError('')
     setDevicesRetry((current) => current + 1)
-    setLimitsRetry((current) => current + 1)
-  }
-  const retryLimits = () => {
-    setLimitsLoading(true)
-    setLimitsError('')
-    setLimitsRetry((current) => current + 1)
   }
   const hasCurrentHistory = Boolean(historyScope && historyResult?.scope === historyScope && historyAttribute === metric)
 
@@ -1335,8 +1241,8 @@ function App() {
 
             <article className="panel alert-panel">
               <div className="panel-heading"><div><h2>Cadastro e configuração</h2><p>Gerencie ambientes, dispositivos e limites</p></div><span className="coming-soon">API Java</span></div>
-              <div className="pending-feature"><span className="pending-icon"><Icon name="settings" size={19} /></span><strong>Configurações persistidas</strong><p>Os limites ficam salvos no backend. Sua avaliação e o acionamento do ESP não são automáticos nesta tela.</p></div>
-              <a className="management-link" href="#configuracao-esp">Configurar ESP <Icon name="arrow" size={14} /></a>
+              <div className="pending-feature"><span className="pending-icon"><Icon name="settings" size={19} /></span><strong>Configurações persistidas</strong><p>Defina os limites uma vez: eles ficam registrados no banco e são enviados ao ESP. Acompanhe a confirmação na área Limites e alertas.</p></div>
+              <a className="management-link" href="#limites">Limites e alertas <Icon name="arrow" size={14} /></a>
             </article>
           </section>
 
@@ -1423,38 +1329,11 @@ function App() {
             </div>
           </section>
 
-          <section className="panel management-panel" id="limites">
-            <div className="panel-heading"><div><h2>Limites ambientais</h2><p>Configuração por dispositivo e métrica</p></div></div>
-            <p className="management-notice">Este cadastro apenas persiste limites independentes por métrica no banco. Ele não configura o ESP, não aciona comandos e não avalia alertas automaticamente. Para enviar os cinco parâmetros ao dispositivo, use a configuração completa do ESP abaixo.</p>
-            {devices.length > 0 && <label className="device-limit-select">Dispositivo<select value={activeLimitDevice ?? ''} onChange={selectDevice}>
-              {devices.map((device) => <option key={device.id} value={device.id}>{device.name} · {device.fiwareId} · {device.mqttDeviceId}</option>)}
-            </select></label>}
-            {limitSaveError && <p className="form-error" role="alert">{limitSaveError}</p>}
-            {limitSaveSuccess && <p className="form-success" role="status">{limitSaveSuccess}</p>}
-            {limitsLoading && activeLimitDevice !== null && <RequestMessage loading label="limites" />}
-            {!limitsLoading && limitsError && <RequestMessage error={limitsError} label="limites" onRetry={retryLimits} />}
-            {activeLimitDevice === null && !devicesLoading && !devicesError && <RequestMessage empty label="dispositivos para configurar limites" />}
-            {!limitsLoading && !limitsError && activeLimitDevice !== null && <div className="limit-editor-grid">
-              {Object.keys(deviceMetrics).map((metricName) => {
-                const current = deviceLimits.find((limit) => limit.metric === metricName)
-                // Remonta após a resposta assíncrona para preencher o rascunho
-                // com os valores salvos, em vez de manter os campos vazios.
-                return (
-                <LimitEditor
-                  key={JSON.stringify([activeLimitDevice, metricName, current ?? null])}
-                  deviceId={activeLimitDevice}
-                  metric={metricName}
-                  current={current}
-                  busy={limitBusy}
-                  onSave={handleSaveLimit}
-                />
-                )
-              })}
-            </div>}
-          </section>
-
+          <div id="limites">
+          {activeLimitDevice === null && !devicesLoading && <section className="panel management-panel"><h2>Limites e alertas</h2><p>Cadastre ou selecione um dispositivo para configurar os limites.</p></section>}
           {activeLimitDevice !== null && <div id="configuracao-esp">
             <DeviceConfigurationPanel
+              key={activeLimitDevice}
               deviceId={activeLimitDevice}
               configuration={deviceConfiguration}
               loading={configurationLoading}
@@ -1469,6 +1348,7 @@ function App() {
               onRetryRevision={handleRetryConfigurationRevision}
             />
           </div>}
+          </div>
 
           {user.role === 'ADMIN' && <AdminUsersPanel key={user.username} csrf={csrf} onUserCreated={() => setWineryMapRevision((value) => value + 1)} />}
 

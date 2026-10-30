@@ -69,7 +69,7 @@ Cadastro e provisionamento no IoT Agent são etapas distintas. Provisionar não 
 
 ## Sensores e configuração
 
-O firmware utiliza ESP32, BME680 e LDR, com display, LEDs e buzzer. Temperatura usa °C; umidade usa %. Luminosidade é ADC bruto de 0 a 4095, sem calibração em lux. Medição de fumaça não faz parte do escopo.
+O firmware utiliza ESP32, BME680 e LDR, com display, LEDs e buzzer. Temperatura usa °C; umidade usa %. No firmware e na API, luminosidade é ADC bruto de 0 a 4095, sem calibração em lux; o dashboard apresenta a escala em porcentagem. A área Limites e alertas registra a configuração completa por revisão e a envia ao ESP, diferenciando solicitação de confirmação. Medição de fumaça não faz parte do escopo.
 
 Salvar um limite por métrica no PostgreSQL não configura o ESP. O envio completo usa revisão e estados `PENDING`, `APPLIED`, `REJECTED` e `UNCONFIRMED`. Aceitação HTTP não comprova execução física. Os parâmetros dos testes são de bancada, não faixas operacionais aprovadas para conservação de vinhos.
 
