@@ -31,7 +31,7 @@ Antes de energizar, o responsável deve conferir a alimentação de cada módulo
 
 Abra o sketch físico no Arduino IDE, instale o core ESP32 e as bibliotecas indicadas no manual, copie os exemplos `secrets.h.example`/`ca_cert.h.example` para os headers locais e preencha rede, usuário MQTT e CA. Selecione a placa e a porta corretas e grave. Não incluir esses headers locais no Git.
 
-O Nextion exige o projeto `.HMI`/`.TFT` correspondente ao modelo e aos nomes de componentes usados pelo firmware. Esses arquivos e as versões efetivamente usadas de placa/core/bibliotecas ainda devem ser reunidos pelo responsável; este manual não afirma reprodução exata do display sem eles.
+Os arquivos originais `.HMI`/`.TFT` estão em [firmware/nextion/](../firmware/nextion/README.md), com instruções para conferir o projeto e carregar o TFT no display. O HMI contém a página `page0` de 480 × 320 e os componentes esperados pelo sketch. Modelo exato do display, versão do editor e versões de placa/core/bibliotecas ainda devem ser confirmados pelo responsável; a inclusão dos arquivos não equivale a nova gravação ou teste físico.
 
 ## 4. Operação diária
 

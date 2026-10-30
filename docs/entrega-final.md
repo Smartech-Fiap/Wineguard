@@ -23,7 +23,7 @@ Atualizado em 30/10/2026. Esta página reúne os materiais para o Microsoft Form
 | Manual de instalação e operação | [Manual consolidado](manual-instalacao-operacao.md) |
 | Vídeo | Concluído, conforme confirmação da equipe. Encaminhamento direto pelo Forms; link não incluído na documentação por orientação da equipe. |
 | Fotos da montagem/encapsulamento | [Vista frontal e interna do protótipo](evidencias/README.md), fornecidas pela equipe. |
-| Interface Nextion | Projeto `.HMI`, `.TFT`, modelo do display e versão do editor ainda não fornecidos. |
+| Interface Nextion | [HMI/TFT originais e manual](../firmware/nextion/README.md) incluídos. Modelo exato e versão do editor ainda a confirmar. |
 
 ## Descrição da solução para o Forms
 
@@ -39,7 +39,8 @@ A equipe informou aprovação do professor para o BME680 em substituição ao DH
 
 - [x] Vídeo concluído, conforme confirmação da equipe. Enviar diretamente pelo Forms e conferir a permissão de acesso.
 - [x] Fotos frontal e interna da montagem/caixa recebidas e documentadas. O esquema elétrico continua sendo um material distinto.
-- [ ] Acrescentar os arquivos Nextion e versões de placa/core/bibliotecas realmente utilizadas.
+- [x] Arquivos Nextion originais e instruções incluídos.
+- [ ] Confirmar versões de placa/core/bibliotecas, modelo do display e versão do editor realmente utilizados.
 - [ ] Confirmar com o professor a adaptação do LED fixo versus piscante.
 - [x] Apresentação realizada, conforme confirmação da equipe. O roteiro permanece como referência; o vídeo também já foi concluído.
 - [ ] Conferir os links do GitHub e do painel e testar o login com uma conta de demonstração.

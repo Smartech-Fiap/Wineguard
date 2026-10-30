@@ -18,7 +18,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 |---|---:|---|---|
 | Encapsulamento | 10% | Evidência fotográfica recebida | [Caixa fechada e montagem interna](evidencias/README.md). A avaliação do acabamento cabe ao professor; as fotos não substituem esquema ou inspeção elétrica. |
 | Diferencial | 10% | Implementações presentes | BME680 e Nextion, autenticação/perfis, propriedade de sensores, mapa, MQTT/TLS e configuração com revisão, NVS e recuperação. Destacar somente o que funciona e o que foi aprovado. |
-| Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. O manual consolidado de operação já foi preparado. Confirmar o manual seguindo os passos em outro ambiente. |
+| Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico e componentes. HMI/TFT e manual Nextion incluídos. O manual consolidado de operação já foi preparado. Confirmar o manual seguindo os passos em outro ambiente. |
 | Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, fluxo único de limites/configuração completa, histórico selecionável e avisos locais ao navegador. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
 | GitHub: README, arquitetura em camadas e códigos | 10% | Documentado | Componentes, READMEs, [arquitetura em camadas](arquitetura-em-camadas.md) e [nomes/RMs/responsabilidades da equipe](../README.md#equipe-e-responsabilidades) presentes. Conferir os links antes do envio da entrega. |
 | Hands-on e pitch | 40% | Apresentação realizada, conforme informação da equipe | A equipe informou que a apresentação já foi realizada. Reunir vídeo, fotos e comprovantes quando disponíveis; esta revisão não informa nota ou resultado da avaliação. |
@@ -31,7 +31,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Nome dos integrantes | Nomes completos, RMs e responsabilidades confirmados pela equipe no README: Artur de Novazzi Maia — 572624; Arthur Pinheiro Germano — 574042; Bruno Araújo Castro — 572723; João Pedro de Souza — 571437. |
 | Descrição completa da solução | READMEs e [descrição consolidada da solução](entrega-final.md) com adaptações informadas como aprovadas. |
 | Arquitetura em camadas | [Documento consolidado](arquitetura-em-camadas.md) com camadas, pacotes Java, persistência, fluxos, acesso, implantação e referências ao código. |
-| Manual de instalação/operação de software e hardware | [Manual consolidado](manual-instalacao-operacao.md) pronto, com links aos procedimentos detalhados. Reprodução exata do hardware/display ainda depende das versões, esquema e arquivos Nextion. |
+| Manual de instalação/operação de software e hardware | [Manual consolidado](manual-instalacao-operacao.md) pronto, com links aos procedimentos detalhados. Reprodução exata do hardware/display ainda depende das versões, esquema e identificação exata do display; [HMI/TFT e manual Nextion](../firmware/nextion/README.md) incluídos. |
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
 | Vídeo de evidências | Vídeo concluído, conforme informação posterior da equipe. Será enviado diretamente pelo Forms; seu link não deve ser incluído nesta documentação. |
@@ -71,15 +71,15 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Testes Vercel e ESP](../backend/docs/testes-vercel-esp.md): alerta de temperatura, `normal`, revisão 2 e telemetria após o reinício solicitado.
 - [Postman](../backend/docs/postman/README-postman.md): execução parcial de autenticação, perfis, mapa e isolamento de sensores.
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
-- [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
+- [Firmware](../firmware/README.md): pinos e configuração; HMI/TFT e manual Nextion incluídos; versões, esquema e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion foram recebidos e incluídos com [instruções](../firmware/nextion/README.md); modelo exato e versão do editor ainda a confirmar. A apresentação já foi realizada, segundo a equipe.
 
 ## Prioridade para fechamento
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
 2. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
-3. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
+3. Confirmar versões, modelo do display e esquema elétrico com o responsável pelo hardware. Os arquivos Nextion já estão incluídos.
 4. Encaminhar o vídeo já concluído diretamente pelo Forms. A apresentação também já foi realizada; não exigir novo vídeo ou apresentação nesta revisão.
 5. Conferir os links e os campos do Forms e realizar o envio pela equipe.
 

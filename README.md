@@ -19,13 +19,13 @@ Nomes, RMs e responsabilidades foram informados pela equipe. Os históricos dos 
 
 ## Estado da entrega
 
-O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend, backend e firmware estão reunidos neste repositório, com seus históricos Git preservados. Os modelos FIWARE/MQTT estão em `infra/fiware/` e precisam de reprodução em instalação nova. No firmware, versões do ambiente de compilação, esquema elétrico e arquivos Nextion ainda precisam de confirmação e complementação.
+O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend, backend e firmware estão reunidos neste repositório, com seus históricos Git preservados. Os modelos FIWARE/MQTT estão em `infra/fiware/` e precisam de reprodução em instalação nova. No firmware, versões do ambiente de compilação e esquema elétrico ainda precisam de confirmação e complementação. Os arquivos Nextion originais estão em [firmware/nextion/](firmware/nextion/README.md).
 
 | Componente | Disponibilidade |
 |---|---|
 | [frontend/](frontend/) | React, Vite, telas, testes e configuração Vercel |
 | [backend/](backend/) | API Java, PostgreSQL/Compose, migrações, testes e documentação |
-| [firmware/](firmware/) | Sketch ESP32 importado, modelos locais e instruções; versões, esquema elétrico, arquivos Nextion e recompilação reproduzível pendentes |
+| [firmware/](firmware/) | Sketch ESP32 importado, modelos locais e instruções; HMI/TFT e manual Nextion incluídos; versões, esquema elétrico e recompilação reproduzível pendentes |
 | [infra/fiware/](infra/fiware/) | Compose validado estruturalmente, MQTT/TLS, templates, gerador privado e licença da base; sete testes offline aprovados no PC e na VM, reprodução nova pendente |
 
 Os modelos Nginx, systemd e renovação de certificados da API estão em [backend/deploy/](backend/deploy/). Eles não substituem os arquivos da infraestrutura FIWARE/MQTT.
@@ -144,13 +144,13 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 
 O [pacote de entrega](docs/entrega-final.md) reúne identificação da equipe, descrição pronta da solução, links e checklist do Forms. Consulte o [manual consolidado](docs/manual-instalacao-operacao.md) e o [roteiro de apresentação e vídeo](docs/roteiro-apresentacao-video.md).
 
-A apresentação já foi realizada, conforme confirmação da equipe. O vídeo está concluído e será enviado diretamente pelo Forms. As [fotos frontal e interna](docs/evidencias/README.md) documentam o encapsulamento. Os arquivos Nextion ainda não foram fornecidos.
+A apresentação já foi realizada, conforme confirmação da equipe. O vídeo está concluído e será enviado diretamente pelo Forms. As [fotos frontal e interna](docs/evidencias/README.md) documentam o encapsulamento. Os arquivos Nextion e suas instruções estão em [firmware/nextion/](firmware/nextion/README.md).
 
 ## Próximas etapas
 
 A [matriz de aderência ao Check Point](docs/aderencia-checkpoint.md) relaciona o enunciado, as adaptações informadas como aprovadas, as evidências e os itens ainda necessários para a entrega.
 
-- Confirmar versões de placa/core/bibliotecas e completar esquema elétrico e arquivos Nextion; compilar e registrar o teste do firmware a partir deste repositório.
+- Confirmar versões de placa/core/bibliotecas e completar esquema elétrico, modelo do display e versão do editor; compilar e registrar o teste do firmware a partir deste repositório.
 - Reproduzir a stack de `infra/fiware/` em instalação separada, conferindo TLS, permissões, provisionamento e histórico. A validação estrutural já passou. Não substituir a VM existente com o modelo sem planejar a migração.
 - Concluir as operações Postman ainda não executadas, incluindo seu novo cadastro de usuário.
 - Conferir documentos antigos, requisitos da faculdade, divisão de autoria e roteiro da apresentação com os quatro integrantes.

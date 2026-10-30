@@ -13,7 +13,7 @@ Abra [WineGuard_firmware/WineGuard_firmware.ino](WineGuard_firmware/WineGuard_fi
 - `ca_cert.h.example`: modelo do certificado público da CA.
 - `secrets.h` e `ca_cert.h`: arquivos criados localmente e ignorados pelo Git.
 
-Os arquivos `.HMI` e `.TFT` do display não estavam no repositório de origem e ainda precisam ser fornecidos. Eles não foram gerados ou substituídos por arquivos fictícios nesta integração.
+Os arquivos originais [WINEGUARD.HMI](nextion/WINEGUARD.HMI) e [WINEGUARD.tft](nextion/WINEGUARD.tft) foram fornecidos posteriormente pela equipe. O [manual do Nextion](nextion/README.md) explica edição, carregamento e comunicação; os originais foram preservados sem alterações.
 
 ## Placa e dependências
 
@@ -114,7 +114,7 @@ Ainda é necessário obter:
 
 - Placa/FQBN, versão do core ESP32, bibliotecas e configuração de compilação realmente utilizadas.
 - Modelo e esquema elétrico completo dos módulos.
-- Projeto `.HMI` e arquivo `.TFT` do Nextion, com sua versão/modelo.
+- Modelo exato do display e versão do Nextion Editor. O HMI e o TFT já estão em [nextion/](nextion/README.md).
 - Compilação reproduzível a partir do repositório e registro da gravação/teste correspondente.
 
 Não há suíte automatizada do firmware incluída no repositório de origem. Os testes Java e de infraestrutura verificam seus próprios contratos; não devem ser apresentados como testes unitários ou compilação deste sketch.

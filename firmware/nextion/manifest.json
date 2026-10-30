@@ -1,0 +1,34 @@
+{
+  "receivedOn": "2026-10-30",
+  "source": "Arquivos fornecidos pela equipe WineGuard",
+  "page": "page0",
+  "resolution": {
+    "width": 480,
+    "height": 320
+  },
+  "components": [
+    "tTemp",
+    "tEstado",
+    "tUmid",
+    "tLuz",
+    "tRede"
+  ],
+  "firmwareUart": {
+    "baud": 9600,
+    "format": "8N1",
+    "espRxGpio": 16,
+    "espTxGpio": 17
+  },
+  "displayModel": null,
+  "editorVersion": null,
+  "files": {
+    "WINEGUARD.HMI": {
+      "bytes": 8746840,
+      "sha256": "a8d8fed2fec67f15cdfe7da048d8a8231cb1ea37ac0abb3364c25a586b975413"
+    },
+    "WINEGUARD.tft": {
+      "bytes": 663672,
+      "sha256": "f3465368cf092beb85f706eb9f0e8d4c8e8d4781a20fa7a2e605bb430f37ff40"
+    }
+  }
+}
