@@ -76,6 +76,8 @@ npm run dev
 
 Consulte [frontend/README.md](frontend/README.md) para variáveis, cookies, contratos e publicação. Mantenha sessão e CSRF tanto no desenvolvimento quanto na publicação HTTPS.
 
+O arquivo [frontend/requirementes.txt](frontend/requirementes.txt) documenta os requisitos com o nome solicitado no enunciado. As dependências são gerenciadas por npm, com `package.json` e `package-lock.json`; o dashboard não exige pacotes Python.
+
 ### Backend
 
 Requisitos: JDK 17, Docker com Compose e acesso às dependências FIWARE para operações de integração. Na pasta `backend/`, copie `.env.example` para `.env`, ajuste as conexões e inicie o PostgreSQL:
@@ -126,6 +128,8 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 - [Firmware, configuração local e sinais dos componentes](firmware/README.md). A integração física registrada não equivale à recompilação deste sketch ou à comparação do binário gravado com seu commit.
 
 ## Próximas etapas
+
+A [matriz de aderência ao Check Point](docs/aderencia-checkpoint.md) relaciona o enunciado, as adaptações informadas como aprovadas, as evidências e os itens ainda necessários para a entrega.
 
 - Confirmar versões de placa/core/bibliotecas e completar esquema elétrico e arquivos Nextion; compilar e registrar o teste do firmware a partir deste repositório.
 - Reproduzir a stack de `infra/fiware/` em instalação separada, conferindo TLS, permissões, provisionamento e histórico. A validação estrutural já passou. Não substituir a VM existente com o modelo sem planejar a migração.

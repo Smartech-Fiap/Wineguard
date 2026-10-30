@@ -179,6 +179,8 @@ function LoginScreen({ onLogin, error, busy }) {
 }
 
 function LimitEditor({ deviceId, metric, current, busy, onSave }) {
+  // O rascunho permite editar sem escrever na API a cada tecla. A chave do
+  // componente é renovada quando o cadastro retornado pelo backend muda.
   const [minimum, setMinimum] = useState(current?.minimumValue === null || current?.minimumValue === undefined ? '' : String(current.minimumValue))
   const [maximum, setMaximum] = useState(current?.maximumValue === null || current?.maximumValue === undefined ? '' : String(current.maximumValue))
   const [unit, setUnit] = useState(current?.unit || '')
@@ -413,6 +415,8 @@ function App() {
   const configurationControllerRef = useRef(null)
   const selectedConfigurationDeviceRef = useRef(null)
 
+  // Vincula respostas à conta e à seleção atual para não mostrar dados da
+  // sessão anterior durante o carregamento. O backend é a barreira de acesso.
   const devices = deviceStore && deviceStore.username === user?.username ? deviceStore.items : []
   const setDevices = useCallback((update) => {
     setDeviceStore((current) => ({
@@ -554,6 +558,8 @@ function App() {
       const initialToken = await getCsrfToken()
       await login(username, password, initialToken)
       loginSucceeded = true
+      // O login pode renovar a sessão; busca novo CSRF e descarta os dados
+      // da conta anterior antes de abrir a área autenticada.
       const refreshedToken = await getCsrfToken()
       const session = await getSession()
       sessionExpiredRef.current = false
@@ -638,6 +644,7 @@ function App() {
     let controller
 
     const loadReadings = async () => {
+      // Suspende polling em aba oculta e evita duas consultas simultâneas.
       if (document.visibilityState === 'hidden') return
       if (inFlight) return
       inFlight = true
@@ -665,6 +672,7 @@ function App() {
     return () => {
       active = false
       window.clearInterval(timer)
+      // Uma resposta atrasada do dispositivo anterior não atualiza a tela.
       controller?.abort()
     }
   }, [authStatus, activeLimitDevice, dataScope, readingsRetry])
@@ -972,6 +980,8 @@ function App() {
         }
       } else {
         const command = deviceAlertCommands[deviceId] || 'normal'
+        // Aceitação HTTP do comando não comprova LED/buzzer acionados; a
+        // mensagem de sucesso mantém essa distinção para o operador.
         await sendDeviceAlert(deviceId, command, csrf)
         setDeviceActionMessages((current) => ({
           ...current,
@@ -1391,6 +1401,8 @@ function App() {
             {!limitsLoading && !limitsError && activeLimitDevice !== null && <div className="limit-editor-grid">
               {Object.keys(deviceMetrics).map((metricName) => {
                 const current = deviceLimits.find((limit) => limit.metric === metricName)
+                // Remonta após a resposta assíncrona para preencher o rascunho
+                // com os valores salvos, em vez de manter os campos vazios.
                 return (
                 <LimitEditor
                   key={JSON.stringify([activeLimitDevice, metricName, current ?? null])}

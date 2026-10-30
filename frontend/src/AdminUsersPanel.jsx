@@ -71,6 +71,7 @@ export default function AdminUsersPanel({ csrf, onUserCreated }) {
       if (!controller.signal.aborted) setError(failure.message)
     } finally {
       if (!controller.signal.aborted) {
+        // Senhas não são guardadas em storage nem reutilizadas após a tentativa.
         setPassword('')
         setConfirmation('')
         setBusy(false)

@@ -4,13 +4,15 @@ Painel React e Vite para consultar leituras do dispositivo selecionado e gerenci
 
 ## Requisitos
 
-- Node.js e npm instalados.
+- Ambiente local verificado: Node.js 24.21.0 e npm 11.19.0. Para reproduzi-lo, use Node.js 24.x com npm compatível; outras versões precisam respeitar os engines das dependências do lockfile.
 - Acesso aos serviços Wineguard para visualizar e gerenciar dados reais.
+
+O arquivo [requirementes.txt](requirementes.txt) corresponde ao nome solicitado no enunciado e descreve ambiente, dependências e comandos. O painel é React/Node.js, portanto as dependências são gerenciadas por `package.json` e `package-lock.json`, não por `pip` ou por um arquivo de pacotes Python.
 
 ## Executar localmente
 
 ```bash
-npm install
+npm ci
 ```
 
 Crie `.env.local` na raiz do projeto usando `.env.example` como modelo:

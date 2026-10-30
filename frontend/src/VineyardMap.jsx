@@ -27,6 +27,8 @@ function FitProperties({ properties }) {
 }
 
 export default function VineyardMap({ onOpenDetails, refreshKey }) {
+  // A API fornece apenas localizações compartilháveis. Não há marcadores
+  // fictícios como fallback para erro, sessão expirada ou cadastro vazio.
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

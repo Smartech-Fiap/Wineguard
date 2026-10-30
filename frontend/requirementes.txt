@@ -1,0 +1,61 @@
+WineGuard — requisitos do dashboard
+
+Arquivo textual solicitado no enunciado como "requirementes.txt".
+Este frontend usa React/Node.js; nao e um projeto Python.
+Nao executar pip install neste arquivo nem instalar bibliotecas Python
+para executar o painel.
+
+1. Ambiente
+
+- Ambiente local verificado em 29/10/2026: Node.js 24.21.0 e npm 11.19.0.
+- Para reproduzir este ambiente, use Node.js 24.x com npm compativel.
+- Outras versoes precisam respeitar os engines das dependencias do lockfile.
+- Navegador com JavaScript, fetch, AbortController, cookies e acesso HTTPS.
+- Acesso a API Java para autenticar e usar dados reais.
+- Acesso aos tiles OpenStreetMap para o fundo cartografico.
+
+2. Manifestos de dependencias
+
+package.json declara pacotes, intervalos de versao e scripts.
+package-lock.json fixa a resolucao utilizada na instalacao por npm ci.
+Esses dois arquivos sao as fontes de verdade para dependencias Node.
+
+Dependencias de execucao declaradas no package.json desta revisao:
+- react: ^19.2.8
+- react-dom: ^19.2.8
+- leaflet: ^1.9.4
+- react-leaflet: ^5.0.0
+- tailwindcss: ^4.3.3
+- @tailwindcss/vite: ^4.3.3
+
+Ferramentas de desenvolvimento incluem Vite, plugin React, ESLint,
+plugins React Hooks/Refresh e tipos React. Consulte package.json e o
+lockfile para a lista e as versoes completas. Atualize este guia se
+as dependencias diretas ou os requisitos de ambiente forem alterados.
+
+3. Instalar e executar
+
+Na pasta frontend:
+    npm ci
+
+Copie .env.example para .env.local. Configure VITE_API_JAVA_TARGET com
+o endereco da API Java. Nao inclua senha, cookie ou token em VITE_*.
+Depois execute:
+    npm run dev
+
+O proxy do Vite e usado apenas no desenvolvimento. Na Vercel, o
+encaminhamento da API e definido por vercel.json, com raiz frontend.
+
+4. Conferir a entrega
+
+    npm run lint
+    npm test
+    npm run build
+
+Saida da compilacao: dist/. O servidor de desenvolvimento nao deve
+ser apresentado como servidor de producao. A pasta node_modules e
+gerada localmente e nao deve ser enviada ao Git.
+
+Os testes usam respostas simuladas; login, cookies/CSRF, dados FIWARE
+e acionamento fisico precisam de validacao no ambiente integrado.
+Os procedimentos completos estao em README.md.

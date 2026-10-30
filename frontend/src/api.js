@@ -1,3 +1,5 @@
+// Todas as chamadas usam /api na origem do painel: Vite no desenvolvimento,
+// rewrite da Vercel na publicação. Cookies não são manipulados pelo React.
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_REFRESH_INTERVAL_MS = 30000
 
@@ -119,6 +121,8 @@ function formatFieldErrors(errors) {
   return []
 }
 
+// Aceita erros JSON comuns e ProblemDetail do Java, preservando status e campos
+// de validação para distinguir sessão expirada, conflito e entrada inválida.
 async function responseError(response) {
   const text = await response.text()
   let payload = null
@@ -148,6 +152,8 @@ async function responseError(response) {
   return new ApiError(message || `O backend respondeu com erro HTTP ${response.status}.`, response.status, payload)
 }
 
+// O mesmo prazo cobre conexão, cabeçalhos e leitura do corpo. Abortos por troca
+// de tela/dispositivo permanecem distintos de timeout, para não gerar erro falso.
 async function request(path, {
   signal,
   timeoutMs = API_TIMEOUT_MS,
@@ -175,6 +181,7 @@ async function request(path, {
     })
 
     if (!response.ok) {
+      // Uma resposta 401 em dados protegidos encerra a área autenticada centralmente.
       if (protectedRequest && response.status === 401) notifySessionExpired()
       processingResponse = true
       throw await responseError(response)
@@ -230,6 +237,8 @@ function validateCsrfToken(data) {
   return { headerName: data.headerName, token: data.token }
 }
 
+// O token fica em memória e acompanha escritas. O cookie HttpOnly é enviado
+// pelo navegador; a API continua responsável por autenticar e autorizar a ação.
 function requireCsrf(csrf) {
   if (!csrf?.headerName || !csrf?.token) {
     throw new Error('Não foi possível validar a solicitação protegida. Atualize o token CSRF e tente novamente.')
@@ -248,6 +257,8 @@ function hasOneDecimalPlace(value) {
 }
 
 export function validateDeviceConfigurationValues(configuration) {
+  // Rejeita precisão extra antes do envio; não arredonda silenciosamente os
+  // limites que depois serão comparados à confirmação da revisão no ESP.
   const { temperatureMin, temperatureMax, humidityMin, humidityMax, luminosityMax } = configuration || {}
   const temperatureSpanTenths = Math.round(temperatureMax * 10) - Math.round(temperatureMin * 10)
   const humiditySpanTenths = Math.round(humidityMax * 10) - Math.round(humidityMin * 10)
@@ -347,6 +358,8 @@ export function validateWineryLocation(data) {
 }
 
 export async function getWineries(options) {
+  // Seleciona somente dados de localização: o mapa compartilhado não carrega
+  // usuários, sensores ou leituras de outras contas para exibi-los no navegador.
   const data = await getJson('/api/wineries', { ...options, protectedRequest: true })
   if (!Array.isArray(data)) throw new Error('A resposta do mapa não corresponde ao formato esperado.')
   return data.map((point) => {
@@ -409,6 +422,8 @@ export async function logout(csrf, options = {}) {
 }
 
 export async function getCurrentReadings(deviceId, options) {
+  // A rota Java verifica propriedade do dispositivo. TimeInstant é normalizado
+  // para a tela, e uma métrica ausente permanece null em vez de virar zero.
   validateDeviceId(deviceId)
   const data = await getJson(`/api/devices/${deviceId}/readings/current`, { ...options, protectedRequest: true })
   if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.id !== 'string' || !data.id.trim()) {
@@ -422,6 +437,8 @@ export async function getCurrentReadings(deviceId, options) {
 }
 
 export async function getSensorHistory(deviceId, attribute, options) {
+  // O backend consulta o STH-Comet (8666). A janela de 24h e a primeira página
+  // de até 20 pontos não equivalem aos vinte registros mais recentes da série.
   validateDeviceId(deviceId)
   if (!['temperature', 'humidity', 'luminosity'].includes(attribute)) {
     throw new Error('Atributo histórico inválido.')
@@ -696,6 +713,8 @@ export async function watchDeviceConfiguration(deviceId, {
   }
   const startedAt = Date.now()
   let latestMatching = null
+  // Consultas GET sequenciais evitam sobreposição. Somente a revisão esperada
+  // pode confirmar este envio; APPLIED antigo não valida uma nova solicitação.
   while (Date.now() - startedAt < timeoutMs) {
     const remaining = timeoutMs - (Date.now() - startedAt)
     await delay(Math.min(intervalMs, remaining), signal)
@@ -724,6 +743,8 @@ export async function retryAndWatchDeviceConfiguration(deviceId, revision, csrf,
   onUpdate,
 } = {}) {
   validateDeviceId(deviceId)
+  // Reenvio é uma ação explícita: consulta o estado, pede confirmação e mantém
+  // a revisão existente. Falha de transporte provoca GET, nunca repetição cega.
   const requestedRevision = validateConfigurationRevision(revision)
   const latest = await getDeviceConfiguration(deviceId, { signal })
   onUpdate?.(latest)
@@ -807,6 +828,8 @@ export async function submitAndWatchDeviceConfiguration(deviceId, values, csrf, 
     sameValues(configuration) &&
     (previousRevision === undefined || String(configuration.revision) !== String(previousRevision))
   let initial
+  // O POST pode ter sido processado mesmo sem resposta. Após falha ambígua,
+  // reconcilia por GET e compara revisão/valores antes de afirmar aplicação.
   try {
     initial = await createDeviceConfiguration(deviceId, values, csrf, {
       signal,
