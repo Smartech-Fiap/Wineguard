@@ -1,2 +1,11 @@
 secrets.h
 ca_cert.h
+build/
+.pio/
+*.bin
+*.elf
+*.map
+*.key
+*.pem
+__pycache__/
+*.pyc

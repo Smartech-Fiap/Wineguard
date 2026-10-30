@@ -1,0 +1,9 @@
+#pragma once
+
+// Copie para ca_cert.h e substitua TODO o conteudo PEM pela CA publica
+// que assinou o certificado do broker. Isto e apenas um modelo.
+// Nao copie server.key ou ca.key para o ESP. Nao use setInsecure().
+static const char CA_CERT[] = R"WG_CA(-----BEGIN CERTIFICATE-----
+COLE_AQUI_O_CONTEUDO_COMPLETO_DA_CA_PUBLICA
+-----END CERTIFICATE-----
+)WG_CA";

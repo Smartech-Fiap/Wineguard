@@ -8,13 +8,13 @@ O acesso exige conta fornecida pela equipe; não existe cadastro público. A API
 
 ## Estado da entrega
 
-O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend e backend já estão reunidos neste repositório, com seus históricos Git preservados. Os modelos da infraestrutura FIWARE/MQTT estão em `infra/fiware/`, mas ainda precisam de reprodução em instalação nova. O firmware final ainda será incorporado.
+O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend, backend e firmware estão reunidos neste repositório, com seus históricos Git preservados. Os modelos FIWARE/MQTT estão em `infra/fiware/` e precisam de reprodução em instalação nova. No firmware, versões do ambiente de compilação, esquema elétrico e arquivos Nextion ainda precisam de confirmação e complementação.
 
 | Componente | Disponibilidade |
 |---|---|
 | [frontend/](frontend/) | React, Vite, telas, testes e configuração Vercel |
 | [backend/](backend/) | API Java, PostgreSQL/Compose, migrações, testes e documentação |
-| Firmware ESP32 | Funciona na integração testada; código final e instruções ainda não incorporados |
+| [firmware/](firmware/) | Sketch ESP32 importado, modelos locais e instruções; versões, esquema elétrico, arquivos Nextion e recompilação reproduzível pendentes |
 | [infra/fiware/](infra/fiware/) | Compose validado estruturalmente, MQTT/TLS, templates, gerador privado e licença da base; sete testes offline aprovados no PC e na VM, reprodução nova pendente |
 
 Os modelos Nginx, systemd e renovação de certificados da API estão em [backend/deploy/](backend/deploy/). Eles não substituem os arquivos da infraestrutura FIWARE/MQTT.
@@ -89,6 +89,12 @@ Configure as variáveis no processo Java antes de iniciá-lo: Spring Boot não l
 
 Flyway aplica V1–V8 na inicialização. Não altere migrações já aplicadas nem remova o volume PostgreSQL para atualizar o código. A preparação da conta ADMIN é uma operação administrativa do ambiente; não há promoção pública de usuários.
 
+### Firmware e infraestrutura
+
+Abra `firmware/WineGuard_firmware/WineGuard_firmware.ino` no Arduino IDE, crie os headers locais a partir dos exemplos e configure a CA e a rede. Confira as [dependências, pinos e pendências do firmware](firmware/README.md) antes de compilar/gravar. A reprodução exata do ambiente de compilação ainda depende das versões informadas pelo responsável.
+
+Os [modelos FIWARE/MQTT](infra/fiware/README.md) incluem Compose, TLS, ACL, provisionamento e assinatura STH. Sua validação estrutural passou; a reprodução em host novo ainda é necessária. Não aplique o modelo sobre a VM existente sem planejar credenciais, certificados, volumes e interrupção.
+
 ## Testes e evidências
 
 Dentro de `frontend/`:
@@ -117,10 +123,11 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 - [Implantação da API e HTTPS](backend/deploy/README.md).
 - [Migrações, rotas e contratos](backend/README.md).
 - [Infraestrutura, origem e procedimento de reprodução](infra/fiware/README.md). Compose validado com `docker compose config --quiet` e sete testes offline aprovados também na VM; isso não substitui a execução da stack revisada.
+- [Firmware, configuração local e sinais dos componentes](firmware/README.md). A integração física registrada não equivale à recompilação deste sketch ou à comparação do binário gravado com seu commit.
 
 ## Próximas etapas
 
-- Incorporar firmware final, dependências, ligações e instruções sem credenciais.
+- Confirmar versões de placa/core/bibliotecas e completar esquema elétrico e arquivos Nextion; compilar e registrar o teste do firmware a partir deste repositório.
 - Reproduzir a stack de `infra/fiware/` em instalação separada, conferindo TLS, permissões, provisionamento e histórico. A validação estrutural já passou. Não substituir a VM existente com o modelo sem planejar a migração.
 - Concluir as operações Postman ainda não executadas, incluindo seu novo cadastro de usuário.
 - Conferir documentos antigos, requisitos da faculdade, divisão de autoria e roteiro da apresentação com os quatro integrantes.

@@ -27,8 +27,8 @@ const char*    DEVICE_ID    = "wine002";
 const char*    CLIENT_ID    = "wineguard_wine002";
 const char*    TOPICO_ATTRS  = "/vinheria2026/wine002/attrs";          // publicar telemetria
 const char*    TOPICO_CMD    = "/vinheria2026/wine002/cmd";            // receber comandos
-// Resposta dos comandos. CANDIDATO do contrato: depende da versao do IoT Agent e da
-// liberacao da ACL pelo responsavel pela infraestrutura (ainda NAO validado).
+// Resposta dos comandos: topico /ul/.../cmdexe validado na integracao de
+// 29/10/2026. Exige a permissao de escrita correspondente na ACL do broker.
 const char*    TOPICO_CMDEXE = "/ul/vinheria2026/wine002/cmdexe";
 const unsigned long INTERVALO_PUBLICACAO = 10000;              // 10 s
 const unsigned long VALIDADE_REMOTO      = 600000UL;           // alerta remoto expira em 10 min
