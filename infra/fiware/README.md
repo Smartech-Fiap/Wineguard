@@ -190,6 +190,16 @@ Testes offline, sem rede, credenciais reais ou Docker:
 python3 -m unittest discover -s scripts -p 'test_*.py' -v
 ```
 
-Os sete testes verificam os contratos gerados, tópicos de confirmação, bloqueio de injeção/curingas, chave ausente, SAN IP/DNS e renderização JSON. Não comprovam o carregamento do plugin, as permissões dos arquivos no container, a inicialização das imagens, TLS ou provisionamento real do Compose revisado. A validação nova ainda deve incluir `docker compose config --quiet` e reprodução em ambiente separado.
+Os sete testes verificam os contratos gerados, tópicos de confirmação, bloqueio de injeção/curingas, chave ausente, SAN IP/DNS e renderização JSON. Não comprovam o carregamento do plugin, as permissões dos arquivos no container, a inicialização das imagens, TLS ou provisionamento real do Compose revisado. A reprodução completa em ambiente separado continua pendente.
+
+### Evidências de 29/10/2026
+
+- Arquivos da infraestrutura consultados no commit `d94121f` deste repositório.
+- YAML, três templates JSON, digests, dependências, portas e links locais conferidos no PC; sete testes offline aprovados.
+- Na VM FIWARE, o Compose foi baixado para uma pasta temporária e submetido a `docker compose config --quiet`, com valor fictício de senha apenas para interpolação. O comando terminou sem mensagens de erro. Nenhum `up` foi executado.
+- Os dois scripts Python e os três templates do mesmo commit foram baixados para outra pasta temporária na VM. Os sete testes passaram: `Ran 7 tests in 0.003s`, `OK`.
+- Os testes utilizaram valores fictícios e não iniciaram containers, alteraram volumes, trocaram credenciais, provisionaram recursos ou modificaram os serviços da implantação existente.
+
+Esses resultados validam a estrutura do Compose e os contratos do gerador. Não são evidência de inicialização ou integração da stack revisada. Ainda é necessário reproduzir a instalação nova, incluindo acesso aos arquivos privados pelo broker, TLS e registro de medições no histórico.
 
 A licença, o Compose e a configuração MQTT têm origem identificada. Não foram importados arquivos de senha, certificados da VM, bancos, backups, coleções antigas com possíveis credenciais ou exemplos de firmware que não são a versão final do grupo. Senhas observadas em comandos da implantação original foram substituídas por variáveis; a inclusão dos modelos não altera nem rotaciona as credenciais em uso.
