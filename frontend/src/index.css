@@ -195,6 +195,8 @@ h1 { color: #202b35; margin: 0; letter-spacing: -1.15px; font-size: 25px; line-h
 .chart-change small { color: #9aa4aa; font-weight: 400; margin-left: 3px; }
 .history-chart { display: block; width: 100%; height: auto; margin-top: 4px; overflow: visible; }
 .history-help { color: #627083; font-size: 12px; line-height: 1.6; }
+.environment-notice { display: grid; gap: 7px; margin: 10px 0; padding: 15px; border: 1px solid #e9bbc3; border-left: 4px solid #a3304c; border-radius: 8px; background: #fff4f5; color: #7d263b; }
+.environment-notice span { font-size: 12px; line-height: 1.6; }
 .history-chart-scroll, .history-table-scroll { overflow-x: auto; }
 .history-chart-scroll .history-chart { min-width: 620px; touch-action: pan-y; }
 .history-selection { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding: 16px; background: #f8f5f6; border: 1px solid #eadfe3; border-radius: 10px; margin: 12px 0; }

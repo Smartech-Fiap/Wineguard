@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_REFRESH_INTERVAL_MS, ApiError, createDevice, createEnvironment, deleteDevice, getCsrfToken, getCurrentReadings, getDeviceConfiguration, getDevices, getEnvironments, getSensorHistory, getSession, login, logout as endSession, provisionDevice, retryAndWatchDeviceConfiguration, sendDeviceAlert, subscribeToSessionExpiration, submitAndWatchDeviceConfiguration, validateDeviceConfigurationValues, watchDeviceConfiguration } from './api.js'
 import VineyardMap, { VineyardDetails } from './VineyardMap.jsx'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
+import NoticesPanel, { NoticeBanner } from './NoticesPanel.jsx'
 import { luminosityPercent, luminosityAdc } from './luminosity.js'
 
 const navigationItems = [
@@ -10,6 +11,7 @@ const navigationItems = [
   { id: 'historico', label: 'Histórico', icon: 'chart' },
   { id: 'ambientes', label: 'Ambientes', icon: 'grapes' },
   { id: 'dispositivos', label: 'Dispositivos', icon: 'devices' },
+  { id: 'avisos', label: 'Avisos', icon: 'bell' },
   { id: 'limites', label: 'Limites e alertas', mobileLabel: 'Limites', icon: 'settings' },
   { id: 'usuarios', label: 'Usuários', icon: 'devices' },
 ]
@@ -1222,6 +1224,7 @@ function App() {
             <article className="stat-card"><div className="stat-top"><span>Última medição</span><span className="metric-icon devices"><Icon name="clock" /></span></div><div className="measurement-time">{readings ? formatTimestamp(readings.measuredAt) : 'Indisponível'}</div><div className="stat-footer"><span>Horário informado pela API</span></div></article>
           </section>}
 
+          {activeDevice && <NoticeBanner key={`notice-${user.username}-${activeDevice.id}`} readings={readings} configuration={deviceConfiguration} readingsError={readingsError} />}
           {!readings && activeDevice && <section className="panel readings-state-panel"><RequestMessage loading={readingsLoading} error={readingsError} label="leituras" onRetry={retryReadings} /><p>Sensor consultado: {activeDevice.fiwareId}. Leituras protegidas pela API Java.</p></section>}
 
           <div id="mapa-vinicolas"><VineyardMap key={user.username} refreshKey={wineryMapRevision} onOpenDetails={openVineyardDetails} /></div>
@@ -1328,6 +1331,8 @@ function App() {
               </div>
             </div>
           </section>
+
+          {activeDevice && <NoticesPanel key={`${user.username}-${activeDevice.id}`} username={user.username} deviceId={activeDevice.id} readings={readings} configuration={deviceConfiguration} readingsError={readingsError} />}
 
           <div id="limites">
           {activeLimitDevice === null && !devicesLoading && <section className="panel management-panel"><h2>Limites e alertas</h2><p>Cadastre ou selecione um dispositivo para configurar os limites.</p></section>}
