@@ -21,6 +21,8 @@ Os modelos Nginx, systemd e renovação de certificados da API estão em [backen
 
 ## Arquitetura
 
+A [arquitetura em camadas](docs/arquitetura-em-camadas.md) detalha apresentação, aplicação/API, integração IoT, persistência e dispositivo, com referências ao código e aos fluxos de dados. O diagrama abaixo resume a integração entre componentes.
+
 ```mermaid
 flowchart LR
     Browser["Navegador · painel React"] -->|"HTTPS /api/*"| Vercel["Vercel · frontend e proxy"]

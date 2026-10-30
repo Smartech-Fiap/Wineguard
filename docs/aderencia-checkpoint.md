@@ -20,7 +20,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Diferencial | 10% | Implementações presentes | BME680 e Nextion, autenticação/perfis, propriedade de sensores, mapa, MQTT/TLS e configuração com revisão, NVS e recuperação. Destacar somente o que funciona e o que foi aprovado. |
 | Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. Confirmar o manual seguindo os passos em outro ambiente. |
 | Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, limites por métrica e configuração completa. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
-| GitHub: README, arquitetura em camadas e códigos | 10% | Parcial | Componentes e READMEs presentes; adicionar nomes completos/divisão da equipe e explicação explícita das camadas. O diagrama atual apresenta o fluxo de integração, sem detalhar todos os limites entre camadas. |
+| GitHub: README, arquitetura em camadas e códigos | 10% | Parcial | Componentes, READMEs e [arquitetura em camadas](arquitetura-em-camadas.md) presentes; ainda adicionar nomes completos e divisão da equipe e conferir o restante dos materiais de entrega. |
 | Hands-on e pitch | 40% | Integração testada, avaliação presencial ainda não comprovada | Alertas, telemetria e recuperação foram observados com o ESP. Preparar roteiro, ensaiar e realizar a apresentação no laboratório; testes remotos não equivalem à avaliação presencial. |
 
 ## Itens de entrega no Forms
@@ -30,7 +30,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Link GitHub com `.ino` | Presente: [sketch ESP32](../firmware/WineGuard_firmware/WineGuard_firmware.ino). |
 | Nome dos integrantes | O README informa quatro integrantes, mas não lista seus nomes completos. Pendente. |
 | Descrição completa da solução | Visão geral e contratos presentes nos READMEs; consolidar a narrativa final e as adaptações aprovadas. |
-| Arquitetura em camadas | Há diagrama de fluxo e separação de pacotes Java; falta uma explicação consolidada das camadas e responsabilidades. |
+| Arquitetura em camadas | [Documento consolidado](arquitetura-em-camadas.md) com camadas, pacotes Java, persistência, fluxos, acesso, implantação e referências ao código. |
 | Manual de instalação/operação de software e hardware | Parcial; pendências de reprodução e hardware identificadas abaixo. |
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
@@ -55,9 +55,9 @@ Se a aprovação não abranger o LED fixo ou a duração/encerramento do alerta 
 
 Referências: [frontend](../frontend/src/App.jsx), [firmware](../firmware/WineGuard_firmware/WineGuard_firmware.ino) e [evidências físicas](../backend/docs/testes-vercel-esp.md).
 
-## Arquitetura existente a explicar na entrega
+## Arquitetura documentada para explicar na entrega
 
-O projeto já contém elementos para uma explicação em camadas:
+O [documento de arquitetura em camadas](arquitetura-em-camadas.md) consolida:
 
 1. Apresentação: React, formulários, mapa, gráficos e interação do operador.
 2. Aplicação/API: Spring Security, controllers, DTOs e serviços Java; autenticação, autorização por proprietário e regras de configuração.
@@ -80,7 +80,7 @@ As suítes de frontend e backend e a leitura de código não substituem o hands-
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
 2. Reunir nomes completos/divisão da equipe e link Wokwi ou sua situação aprovada.
-3. Complementar manuais, arquitetura em camadas e requisitos/comentários do frontend.
+3. Complementar os manuais de hardware e ensaiar a explicação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
 4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
 5. Preparar o vídeo e ensaiar o pitch/hands-on, com cenários normal, anomalia e recuperação.
 6. Conferir os links e os campos do Forms e realizar o envio pela equipe.
