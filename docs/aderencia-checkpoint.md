@@ -34,7 +34,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Manual de instalação/operação de software e hardware | [Manual consolidado](manual-instalacao-operacao.md) pronto, com links aos procedimentos detalhados. Reprodução exata do hardware/display ainda depende das versões, esquema e arquivos Nextion. |
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
-| Wokwi com LDR e DHT-22 | A equipe solicitou manter BME680 e LDR também na simulação. Wokwi não oferece BME680 nativo; modelo personalizado e link público permanecem pendentes. A variante DHT foi retirada da entrega. |
+| Wokwi com LDR e DHT-22 | Não incluído por decisão da equipe em 30/10/2026. O requisito original é preservado nesta matriz, sem alegar atendimento ou dispensa pelo professor. |
 | Vídeo de evidências | Vídeo concluído, conforme informação posterior da equipe. Será enviado diretamente pelo Forms; seu link não deve ser incluído nesta documentação. |
 | Envio do Forms | Não comprovado por esta revisão. Conferir todos os links e campos antes do envio. |
 
@@ -74,15 +74,15 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
 - [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe. A simulação deve manter BME680/LDR e ainda precisa de modelo personalizado e link.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe. A simulação foi retirada do escopo de trabalho por decisão da equipe, sem ser apresentada como requisito atendido.
 
 ## Prioridade para fechamento
 
 1. Confirmar o escopo da adaptação visual, especialmente LED fixo versus piscante.
-2. Concluir e salvar a simulação Wokwi e registrar o link; os nomes e RMs da equipe já estão completos.
+2. Manter explícita a decisão de não incluir a simulação; os nomes e RMs da equipe já estão completos.
 3. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
 4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
 5. Encaminhar o vídeo já concluído diretamente pelo Forms. A apresentação também já foi realizada; não exigir novo vídeo ou apresentação nesta revisão.
 6. Conferir os links e os campos do Forms e realizar o envio pela equipe.
 
-Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a necessidade de conferir o envio dos materiais obrigatórios e concluir a simulação.
+Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a necessidade de conferir o envio dos materiais obrigatórios sem marcar a simulação não entregue como atendida.

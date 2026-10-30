@@ -121,4 +121,4 @@ Não há suíte automatizada do firmware incluída no repositório de origem. Os
 
 ## Simulação acadêmica
 
-A equipe solicitou manter o BME680 e o LDR também na simulação. O Wokwi não oferece BME680 nativo; um modelo personalizado e seu teste ainda são necessários. A variante DHT-22 foi retirada da entrega. O sketch físico permanece inalterado.
+A equipe decidiu não incluir a simulação na entrega em 30/10/2026. O firmware físico com BME680 e LDR permanece inalterado. Essa decisão não é apresentada como dispensa do requisito pelo professor.

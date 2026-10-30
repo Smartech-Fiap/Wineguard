@@ -1,6 +1,6 @@
 # Manual consolidado de instalação e operação — WineGuard
 
-Este manual orienta a execução e aponta os procedimentos detalhados de cada componente. O protótipo físico usa BME680; por orientação da equipe, a simulação também deve preservar esse sensor. Não há medição de fumaça no escopo.
+Este manual orienta a execução e aponta os procedimentos detalhados de cada componente. O protótipo físico usa BME680. A equipe decidiu não incluir simulação na entrega. Não há medição de fumaça no escopo.
 
 ## 1. Identificar os componentes
 
@@ -11,7 +11,6 @@ Este manual orienta a execução e aponta os procedimentos detalhados de cada co
 | Java 17 e PostgreSQL 16 | API, sessão, autorização e cadastros | [Backend](../backend/README.md) |
 | Nginx, TLS e systemd | Publicação e operação da API | [Implantação](../backend/deploy/README.md) |
 | React e Vite | Dashboard web | [Frontend](../frontend/README.md) e [requisitos](../frontend/requirementes.txt) |
-| Wokwi | BME680/LDR com modelo personalizado ainda pendente | Não há componente BME680 nativo; não confundir BME280 com BME680. |
 
 ## 2. Preparar a instalação de software
 
