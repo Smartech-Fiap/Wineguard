@@ -1,0 +1,21 @@
+{
+  "devices": [
+    {
+      "device_id": "${DEVICE_ID}",
+      "entity_name": "${ENTITY_ID}",
+      "entity_type": "${ENTITY_TYPE}",
+      "protocol": "PDI-IoTA-UltraLight",
+      "transport": "MQTT",
+      "attributes": [
+        { "object_id": "t", "name": "temperature", "type": "Number" },
+        { "object_id": "h", "name": "humidity", "type": "Number" },
+        { "object_id": "l", "name": "luminosity", "type": "Number" },
+        { "object_id": "cfg", "name": "configuration", "type": "Text" }
+      ],
+      "commands": [
+        { "name": "alert", "type": "command" },
+        { "name": "configure", "type": "command" }
+      ]
+    }
+  ]
+}

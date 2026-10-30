@@ -1,0 +1,16 @@
+{
+  "description": "WineGuard: historico de temperatura, umidade e luminosidade",
+  "status": "active",
+  "subject": {
+    "entities": [{ "idPattern": ".*", "type": "${ENTITY_TYPE}" }],
+    "condition": {
+      "attrs": ["temperature", "humidity", "luminosity"],
+      "notifyOnMetadataChange": true
+    }
+  },
+  "notification": {
+    "http": { "url": "http://sth-comet:8666/notify" },
+    "attrs": ["temperature", "humidity", "luminosity"],
+    "attrsFormat": "legacy"
+  }
+}

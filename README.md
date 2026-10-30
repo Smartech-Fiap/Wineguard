@@ -8,14 +8,14 @@ O acesso exige conta fornecida pela equipe; não existe cadastro público. A API
 
 ## Estado da entrega
 
-O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend e backend já estão reunidos neste repositório, com seus históricos Git preservados. A consolidação do firmware e da infraestrutura FIWARE/MQTT ainda está em andamento.
+O fluxo painel → API Java → FIWARE/MQTT → ESP foi validado manualmente. Frontend e backend já estão reunidos neste repositório, com seus históricos Git preservados. Os modelos da infraestrutura FIWARE/MQTT estão em `infra/fiware/`, mas ainda precisam de reprodução em instalação nova. O firmware final ainda será incorporado.
 
 | Componente | Disponibilidade |
 |---|---|
 | [frontend/](frontend/) | React, Vite, telas, testes e configuração Vercel |
 | [backend/](backend/) | API Java, PostgreSQL/Compose, migrações, testes e documentação |
 | Firmware ESP32 | Funciona na integração testada; código final e instruções ainda não incorporados |
-| Infraestrutura FIWARE/MQTT | Funciona na AWS; arquivos e instruções de reprodução ainda não incorporados |
+| [infra/fiware/](infra/fiware/) | Compose, MQTT/TLS, templates de provisionamento e histórico, gerador privado, testes offline e licença da base; reprodução nova pendente |
 
 Os modelos Nginx, systemd e renovação de certificados da API estão em [backend/deploy/](backend/deploy/). Eles não substituem os arquivos da infraestrutura FIWARE/MQTT.
 
@@ -116,11 +116,12 @@ Foram verificados manualmente: login ADMIN/USER, sessão após recarga, logout, 
 - [Postman e evidências de execução parcial](backend/docs/postman/README-postman.md).
 - [Implantação da API e HTTPS](backend/deploy/README.md).
 - [Migrações, rotas e contratos](backend/README.md).
+- [Infraestrutura, origem e procedimento de reprodução](infra/fiware/README.md). O gerador tem sete testes offline; eles não substituem a execução da stack revisada.
 
 ## Próximas etapas
 
 - Incorporar firmware final, dependências, ligações e instruções sem credenciais.
-- Incorporar Compose e modelos FIWARE/MQTT, provisionamento e assinaturas para reprodução do ambiente.
+- Validar o Compose de `infra/fiware/` e reproduzir a stack em instalação separada, conferindo TLS, permissões, provisionamento e histórico. Não substituir a VM existente com o modelo sem planejar a migração.
 - Concluir as operações Postman ainda não executadas, incluindo seu novo cadastro de usuário.
 - Conferir documentos antigos, requisitos da faculdade, divisão de autoria e roteiro da apresentação com os quatro integrantes.
 

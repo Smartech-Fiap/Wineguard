@@ -1,0 +1,136 @@
+name: wineguard-fiware
+
+services:
+  mongo-db-historical:
+    image: mongo@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef
+    container_name: fiware-mongo-historical
+    hostname: mongo-db-historical
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Preencha MONGO_ROOT_PASSWORD no .env local}
+    command: [mongod, --nojournal, --auth]
+    volumes:
+      - mongo-historical-data:/data/db
+
+  mongo-db-internal:
+    image: mongo@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef
+    container_name: fiware-mongo-internal
+    hostname: mongo-db-internal
+    restart: unless-stopped
+    command: [mongod, --nojournal]
+    volumes:
+      - mongo-internal-data:/data/db
+
+  orion:
+    image: fiware/orion@sha256:6b7051fef1b95561160e1da1fe01eab5b08ded91771e19c83f470fb037caccba
+    container_name: fiware-orion
+    hostname: orion
+    restart: unless-stopped
+    depends_on:
+      - mongo-db-historical
+    ports:
+      - "${FIWARE_BIND_ADDRESS:-127.0.0.1}:1026:1026"
+    # Como observado na VM: Orion e STH usam o Mongo historico autenticado.
+    command:
+      - -dbhost
+      - mongo-db-historical
+      - -dbuser
+      - ${MONGO_ROOT_USER:-admin}
+      - -dbpwd
+      - ${MONGO_ROOT_PASSWORD:?Preencha MONGO_ROOT_PASSWORD no .env local}
+      - -dbAuthDb
+      - admin
+      - -corsOrigin
+      - __ALL
+      - -corsMaxAge
+      - "600"
+
+  fiware-sth-comet:
+    image: telefonicaiot/fiware-sth-comet@sha256:b983eb4ba725ab30e62d732fce1a5dea8e8346fe6466609de1a228d76d498cae
+    container_name: fiware-sth-comet
+    hostname: sth-comet
+    restart: unless-stopped
+    depends_on:
+      - mongo-db-historical
+    ports:
+      - "${FIWARE_BIND_ADDRESS:-127.0.0.1}:8666:8666"
+    environment:
+      STH_HOST: 0.0.0.0
+      STH_PORT: "8666"
+      DB_PREFIX: sth_
+      DB_URI: mongo-db-historical:27017
+      DB_USERNAME: ${MONGO_ROOT_USER:-admin}
+      DB_PASSWORD: ${MONGO_ROOT_PASSWORD:?Preencha MONGO_ROOT_PASSWORD no .env local}
+      DB_AUTH_SOURCE: admin
+      LOGOPS_LEVEL: INFO
+    networks:
+      default:
+        aliases:
+          - sth-comet
+
+  mosquitto:
+    image: eclipse-mosquitto@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    container_name: fiware-mosquitto
+    hostname: mosquitto
+    restart: unless-stopped
+    ports:
+      - "${MQTT_TLS_BIND_ADDRESS:-0.0.0.0}:8883:8883"
+    # 1883 e anonimo somente na rede Docker; nao ha publicacao no host.
+    volumes:
+      - type: bind
+        source: ./mosquitto/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.local/mosquitto.passwd
+        target: /mosquitto/config/passwd
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.local/mosquitto.acl
+        target: /mosquitto/config/acl
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.local/tls
+        target: /mosquitto/config/tls
+        read_only: true
+        bind:
+          create_host_path: false
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  iot-agent:
+    image: fiware/iotagent-ul@sha256:a1518b23600344db9ba3d0beafea7edf25200b4b6f0b08dfac35d577814325de
+    container_name: fiware-iot-agent
+    hostname: iot-agent
+    restart: unless-stopped
+    depends_on:
+      - mongo-db-internal
+      - mosquitto
+    ports:
+      - "${FIWARE_BIND_ADDRESS:-127.0.0.1}:4041:4041"
+    environment:
+      IOTA_CB_HOST: orion
+      IOTA_CB_PORT: "1026"
+      IOTA_CB_NGSI_VERSION: v2
+      IOTA_NORTH_PORT: "4041"
+      IOTA_MONGO_HOST: mongo-db-internal
+      IOTA_MONGO_PORT: "27017"
+      IOTA_MQTT_HOST: mosquitto
+      IOTA_MQTT_PORT: "1883"
+      IOTA_LOG_LEVEL: INFO
+      IOTA_TIMESTAMP: "true"
+      IOTA_AUTOCAST: "true"
+      IOTA_PROVIDER_URL: http://iot-agent:4041
+
+volumes:
+  mongo-historical-data:
+  mongo-internal-data:
+  mosquitto-data:
+  mosquitto-log:
