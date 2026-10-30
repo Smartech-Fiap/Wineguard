@@ -1,6 +1,6 @@
 # Roteiro de vídeo de evidências
 
-A apresentação já foi realizada, conforme informação da equipe. Este roteiro é apoio à gravação do vídeo ainda pendente, sem exigir uma nova apresentação. Sugestão de duração: 5–7 minutos; ajustar ao enunciado. As falas abaixo descrevem a solução implementada; as demonstrações devem ser gravadas com o equipamento real. Este documento não é evidência de que o vídeo já foi produzido.
+A apresentação já foi realizada, conforme informação da equipe. O vídeo também já foi concluído e será enviado diretamente pelo Forms. Este roteiro foi preservado apenas como referência, sem exigir nova gravação ou apresentação. Sugestão de duração: 5–7 minutos; ajustar ao enunciado. As falas abaixo descrevem a solução implementada; as demonstrações devem ser gravadas com o equipamento real. Este documento não é evidência de que o vídeo já foi produzido.
 
 ## 1. Problema e proposta — Bruno, cerca de 40 segundos
 

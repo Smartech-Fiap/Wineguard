@@ -22,8 +22,8 @@ Atualizado em 30/10/2026. Esta página reúne os materiais para o Microsoft Form
 | Arquitetura em camadas | [Documento](arquitetura-em-camadas.md) |
 | Manual de instalação e operação | [Manual consolidado](manual-instalacao-operacao.md) |
 | Simulação ESP32 + BME680 + LDR | Modelo personalizado e link Wokwi ainda pendentes. Sensor mantido conforme orientação da equipe; não substituir por DHT-22. |
-| Vídeo | Gravação, publicação e link acessível ao avaliador pendentes. Usar o [roteiro](roteiro-apresentacao-video.md). |
-| Fotos da montagem/encapsulamento | Ainda não fornecidas. Registrar montagem completa, conexões e acabamento físico. |
+| Vídeo | Concluído, conforme confirmação da equipe. Encaminhamento direto pelo Forms; link não incluído na documentação por orientação da equipe. |
+| Fotos da montagem/encapsulamento | [Vista frontal e interna do protótipo](evidencias/README.md), fornecidas pela equipe. |
 | Interface Nextion | Projeto `.HMI`, `.TFT`, modelo do display e versão do editor ainda não fornecidos. |
 
 ## Descrição da solução para o Forms
@@ -39,11 +39,11 @@ A equipe informou aprovação do professor para o BME680 em substituição ao DH
 ## Conferência antes do envio
 
 - [ ] Colocar o link Wokwi definitivo e abrir em janela sem autenticação.
-- [ ] Gravar o vídeo com evidências reais, publicar e conferir a permissão de visualização.
-- [ ] Reunir fotos da montagem, circuito e caixa/encapsulamento.
+- [x] Vídeo concluído, conforme confirmação da equipe. Enviar diretamente pelo Forms e conferir a permissão de acesso.
+- [x] Fotos frontal e interna da montagem/caixa recebidas e documentadas. O esquema elétrico continua sendo um material distinto.
 - [ ] Acrescentar os arquivos Nextion e versões de placa/core/bibliotecas realmente utilizadas.
 - [ ] Confirmar com o professor a adaptação do LED fixo versus piscante.
-- [x] Apresentação realizada, conforme confirmação da equipe. O roteiro restante serve para o vídeo.
+- [x] Apresentação realizada, conforme confirmação da equipe. O roteiro permanece como referência; o vídeo também já foi concluído.
 - [ ] Conferir os links do GitHub e do painel e testar o login com uma conta de demonstração.
 - [ ] Manter as duas EC2 e o laboratório ativos durante o hands-on; conferir HTTPS e telemetria recente.
 - [ ] Preencher e enviar o Forms pela conta do integrante responsável; guardar o comprovante.

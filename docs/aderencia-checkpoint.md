@@ -16,7 +16,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 
 | Critério | Peso | Situação observada | Evidência ou ação restante |
 |---|---:|---|---|
-| Encapsulamento | 10% | Não confirmado | Solicitar evidência da montagem/caixa e confirmar se o critério se refere ao acabamento físico. A separação de classes no código não comprova encapsulamento do protótipo. |
+| Encapsulamento | 10% | Evidência fotográfica recebida | [Caixa fechada e montagem interna](evidencias/README.md). A avaliação do acabamento cabe ao professor; as fotos não substituem esquema ou inspeção elétrica. |
 | Diferencial | 10% | Implementações presentes | BME680 e Nextion, autenticação/perfis, propriedade de sensores, mapa, MQTT/TLS e configuração com revisão, NVS e recuperação. Destacar somente o que funciona e o que foi aprovado. |
 | Manual de software e hardware | 10% | Parcial | Software e implantação documentados; completar versões de placa/core/bibliotecas, esquema elétrico, componentes e arquivos Nextion. O manual consolidado de operação já foi preparado. Confirmar o manual seguindo os passos em outro ambiente. |
 | Frontend: cadastro, gráficos e triggers | 20% | Implementado com adaptações informadas | Cadastro, listagem, provisionamento, remoção, histórico STH, fluxo único de limites/configuração completa, histórico selecionável e avisos locais ao navegador. A avaliação de anomalias é local no ESP; envio manual remoto no frontend. Explicar essa diferença aprovada e confirmar a exigência de piscamento. |
@@ -35,7 +35,7 @@ O piscamento merece confirmação separada: o código atual mantém o LED vermel
 | Dashboard comentado | Comentários adicionados em sessão/CSRF, isolamento de respostas, polling, adaptação Orion/STH, reenvio e confirmação do ESP, limites assíncronos, mapa e tratamento de senhas. Explicam decisões sem alterar a lógica. |
 | Arquivo de requisitos solicitado | [frontend/requirementes.txt](../frontend/requirementes.txt) documenta o ambiente e os comandos com o nome do enunciado. As dependências React/Node continuam definidas por `package.json` e `package-lock.json`; não foram inventadas dependências Python. |
 | Wokwi com LDR e DHT-22 | A equipe solicitou manter BME680 e LDR também na simulação. Wokwi não oferece BME680 nativo; modelo personalizado e link público permanecem pendentes. A variante DHT foi retirada da entrega. |
-| Vídeo de evidências | [Roteiro de vídeo e hands-on](roteiro-apresentacao-video.md) pronto. A equipe informou em 30/10 que ainda precisa preparar vídeo, fotos e arquivos Nextion. |
+| Vídeo de evidências | Vídeo concluído, conforme informação posterior da equipe. Será enviado diretamente pelo Forms; seu link não deve ser incluído nesta documentação. |
 | Envio do Forms | Não comprovado por esta revisão. Conferir todos os links e campos antes do envio. |
 
 ## Comportamento de alerta: requisito original e implementação
@@ -74,7 +74,7 @@ A Vercel e o Nginx encaminham requisições; não substituem as regras de negóc
 - [Infraestrutura](../infra/fiware/README.md): Compose validado estruturalmente e sete testes offline também na VM; sem reprodução completa nova.
 - [Firmware](../firmware/README.md): pinos e configuração; versões, esquema, Nextion e recompilação reproduzível ainda pendentes.
 
-As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou em 30/10 que vídeo, fotos e arquivos Nextion ainda serão preparados. A apresentação já foi realizada, segundo a equipe. A simulação deve manter BME680/LDR e ainda precisa de modelo personalizado e link.
+As suítes de frontend e backend e a leitura de código não substituem o hands-on ou um vídeo que mostre a montagem real. Os nomes, RMs e responsabilidades dos quatro integrantes foram confirmados pela equipe; a lista completa de identificação foi atualizada em 30/10/2026. A equipe confirmou posteriormente que o vídeo já está concluído e forneceu [fotos frontal e interna](evidencias/README.md). Os arquivos Nextion ainda não foram fornecidos. A apresentação já foi realizada, segundo a equipe. A simulação deve manter BME680/LDR e ainda precisa de modelo personalizado e link.
 
 ## Prioridade para fechamento
 
@@ -82,7 +82,7 @@ As suítes de frontend e backend e a leitura de código não substituem o hands-
 2. Concluir e salvar a simulação Wokwi e registrar o link; os nomes e RMs da equipe já estão completos.
 3. Complementar os manuais de hardware e preservar a documentação da arquitetura; os requisitos/comentários do frontend e o documento de camadas já foram acrescentados.
 4. Reunir arquivos Nextion, versões e esquema elétrico com o responsável pelo hardware.
-5. Preparar o vídeo de evidências conforme o [roteiro](roteiro-apresentacao-video.md). A apresentação já foi realizada e não é tratada como pendência.
+5. Encaminhar o vídeo já concluído diretamente pelo Forms. A apresentação também já foi realizada; não exigir novo vídeo ou apresentação nesta revisão.
 6. Conferir os links e os campos do Forms e realizar o envio pela equipe.
 
-Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a ausência de materiais obrigatórios como vídeo e simulação.
+Concorrência real do PostgreSQL, cobertura integral de Postman e testes prolongados de NVS são melhorias de validação, mas não foram listados como entregas explícitas no enunciado recebido. Não confundir essas melhorias com a necessidade de conferir o envio dos materiais obrigatórios e concluir a simulação.
