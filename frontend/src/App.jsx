@@ -103,12 +103,13 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }) {
 }
 
 function HistoryChart({ points: rawPoints, metric }) {
+  const [selectedIndex, setSelectedIndex] = useState(null)
   const config = metrics[metric]
   // A API e os limites permanecem em ADC; convertemos somente a apresentação.
   const points = metric === 'luminosity' ? rawPoints.map((point) => ({ ...point, value: luminosityPercent(point.value) })) : rawPoints
   const width = 720
-  const height = 218
-  const pad = { top: 12, right: 12, bottom: 32, left: 42 }
+  const height = 280
+  const pad = { top: 16, right: 20, bottom: 50, left: 48 }
   const values = points.map((point) => point.value)
   const minValue = Math.min(...values)
   const maxValue = Math.max(...values)
@@ -126,11 +127,34 @@ function HistoryChart({ points: rawPoints, metric }) {
   }))
   const line = pointsForChart.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
   const area = `${line} L ${pointsForChart[pointsForChart.length - 1].x} ${height - pad.bottom} L ${pointsForChart[0].x} ${height - pad.bottom} Z`
-  const labelCount = Math.min(points.length, 5)
-  const labelIndexes = Array.from({ length: labelCount }, (_, index) => Math.round(index * (points.length - 1) / Math.max(labelCount - 1, 1)))
+  // Espaçamento por posição visual, inclusive quando os horários se concentram.
+  const labelIndexes = [0]
+  for (let index = 1; index < points.length - 1; index++) {
+    if (pointsForChart[index].x - pointsForChart[labelIndexes.at(-1)].x >= 150 &&
+        pointsForChart.at(-1).x - pointsForChart[index].x >= 150) labelIndexes.push(index)
+  }
+  if (points.length > 1) labelIndexes.push(points.length - 1)
+  const activeIndex = Math.min(selectedIndex ?? points.length - 1, points.length - 1)
+  const selected = pointsForChart[activeIndex]
+  const exactTime = (value) => new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    second: '2-digit', fractionalSecondDigits: 3, timeZoneName: 'short',
+  }).format(new Date(value))
+  const selectNearest = (event) => {
+    const svg = event.currentTarget
+    const cursor = new DOMPoint(event.clientX, event.clientY).matrixTransform(svg.getScreenCTM().inverse())
+    let nearest = 0
+    pointsForChart.forEach((point, index) => {
+      if (Math.abs(point.x - cursor.x) < Math.abs(pointsForChart[nearest].x - cursor.x)) nearest = index
+    })
+    setSelectedIndex(nearest)
+  }
 
   return (
-    <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Histórico real de ${config.label.toLowerCase()}, eixo horizontal por horário de recebimento e vertical por valor`}>
+    <div className="history-explorer">
+    <p className="history-help">Passe o mouse ou toque no gráfico para consultar uma leitura. Use as setas abaixo para percorrer pontos próximos.</p>
+    <div className="history-chart-scroll">
+    <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} onPointerMove={selectNearest} onPointerDown={selectNearest} role="img" aria-label={`Histórico de ${config.label.toLowerCase()} em ${config.unit}. Valores exatos disponíveis nos controles e na tabela abaixo.`}>
       <defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={config.color} stopOpacity=".18" /><stop offset="100%" stopColor={config.color} stopOpacity="0" /></linearGradient></defs>
       {[0, 1, 2, 3].map((row) => {
         const y = pad.top + (row / 3) * (height - pad.top - pad.bottom)
@@ -138,9 +162,18 @@ function HistoryChart({ points: rawPoints, metric }) {
       })}
       <path d={area} fill="url(#chart-fill)" />
       <path d={line} fill="none" stroke={config.color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1={selected.x} x2={selected.x} y1={pad.top} y2={height - pad.bottom} stroke={config.color} strokeDasharray="4 4" />
+      <circle cx={selected.x} cy={selected.y} r="6" fill={config.color} stroke="white" strokeWidth="2" />
       {pointsForChart.map((point, index) => <circle key={`${point.receivedAt}-${index}`} cx={point.x} cy={point.y} r={points.length === 1 ? 4 : 2.5} fill={config.color} stroke="white" strokeWidth="1.5"><title>{`${formatTimestamp(point.receivedAt)} · ${formatValue(point.value)} ${config.unit}`}</title></circle>)}
-      {labelIndexes.map((index) => <text key={`${points[index].receivedAt}-${index}`} x={pointsForChart[index].x} y={height - 3} className="axis-label" textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'}>{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(points[index].timestamp))}</text>)}
+      {labelIndexes.map((index) => <text key={`${points[index].receivedAt}-${index}`} x={pointsForChart[index].x} y={height - 24} className="axis-label" textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'}><tspan x={pointsForChart[index].x}>{new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(points[index].timestamp))}</tspan><tspan x={pointsForChart[index].x} dy="16">{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(points[index].timestamp))}</tspan></text>)}
     </svg>
+    </div>
+    <div className="history-selection">
+      <div><span>Leitura {activeIndex + 1} de {points.length}</span><strong>{formatValue(selected.value, metric === 'luminosity' ? 2 : 3)} {config.unit}</strong><time dateTime={selected.receivedAt}>{exactTime(selected.receivedAt)}</time></div>
+      <div className="history-step-controls"><button type="button" onClick={() => setSelectedIndex(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Leitura anterior">← Anterior</button><button type="button" onClick={() => setSelectedIndex(activeIndex + 1)} disabled={activeIndex === points.length - 1} aria-label="Próxima leitura">Próxima →</button></div>
+    </div>
+    <details className="history-table-details"><summary>Ver todas as {points.length} leituras em tabela</summary><div className="history-table-scroll"><table><caption>Horário de recebimento no histórico ({config.label.toLowerCase()})</caption><thead><tr><th scope="col">Data e horário</th><th scope="col">Valor ({config.unit})</th><th scope="col">No gráfico</th></tr></thead><tbody>{points.map((point, index) => <tr key={`${point.receivedAt}-${index}`} className={index === activeIndex ? 'selected-reading' : ''}><td>{exactTime(point.receivedAt)}</td><td>{formatValue(point.value, metric === 'luminosity' ? 2 : 3)} {config.unit}</td><td><button type="button" onClick={() => setSelectedIndex(index)} aria-pressed={index === activeIndex}>Selecionar leitura {index + 1}</button></td></tr>)}</tbody></table></div></details>
+    </div>
   )
 }
 
@@ -1296,7 +1329,7 @@ function App() {
               {activeDevice && historyLoading && !hasCurrentHistory && <RequestMessage loading label="histórico" />}
               {activeDevice && historyError && <RequestMessage error={historyError} onRetry={retryHistory} label="histórico" />}
               {!historyLoading && !historyError && hasCurrentHistory && history.length === 0 && <RequestMessage empty label="registros históricos" />}
-              {hasCurrentHistory && history.length > 0 && <HistoryChart points={history} metric={metric} />}
+              {hasCurrentHistory && history.length > 0 && <HistoryChart key={`${historyScope}-${metric}`} points={history} metric={metric} />}
               <div className="chart-foot"><span><i className="chart-legend-dot" style={{ background: metrics[metric].color }} /> {hasCurrentHistory ? `${history.length} registro(s)` : 'Aguardando registros'} · {metrics[metric].label}</span><span><Icon name="clock" size={14} /> receivedAt · {Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
             </article>
 

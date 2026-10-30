@@ -194,6 +194,24 @@ h1 { color: #202b35; margin: 0; letter-spacing: -1.15px; font-size: 25px; line-h
 .chart-change { display: inline-flex; align-items: center; gap: 2px; color: #63a477; font-size: 9px; font-weight: 600; }
 .chart-change small { color: #9aa4aa; font-weight: 400; margin-left: 3px; }
 .history-chart { display: block; width: 100%; height: auto; margin-top: 4px; overflow: visible; }
+.history-help { color: #627083; font-size: 12px; line-height: 1.6; }
+.history-chart-scroll, .history-table-scroll { overflow-x: auto; }
+.history-chart-scroll .history-chart { min-width: 620px; touch-action: pan-y; }
+.history-selection { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding: 16px; background: #f8f5f6; border: 1px solid #eadfe3; border-radius: 10px; margin: 12px 0; }
+.history-selection > div:first-child { display: grid; gap: 6px; }
+.history-selection span, .history-selection time { font-size: 12px; color: #536174; }
+.history-selection strong { font-size: 24px; color: #283340; }
+.history-step-controls { display: flex; gap: 8px; }
+.history-explorer button { padding: 9px 12px; border: 1px solid #d8dde2; border-radius: 7px; background: white; color: #394553; cursor: pointer; }
+.history-explorer button:disabled { opacity: .45; cursor: default; }
+.history-explorer button:focus-visible, .history-table-details summary:focus-visible { outline: 2px solid #914559; outline-offset: 3px; }
+.history-table-details summary { cursor: pointer; padding: 12px 0; font-size: 13px; font-weight: 600; }
+.history-table-scroll { max-height: 360px; }
+.history-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.history-table-scroll caption { text-align: left; padding: 10px 0; color: #627083; }
+.history-table-scroll th, .history-table-scroll td { text-align: left; padding: 12px; border-bottom: 1px solid #edf0f4; white-space: nowrap; }
+.history-table-scroll th { background: #f8f9fb; }
+.history-table-scroll .selected-reading { background: #f8edf0; }
 .axis-label { fill: #a5afb6; font-size: 9px; font-family: inherit; }
 .chart-foot { display: flex; align-items: center; justify-content: space-between; color: #99a3aa; font-size: 9px; margin: 5px 1px 0; }
 .chart-foot > span { display: flex; align-items: center; gap: 6px; }
